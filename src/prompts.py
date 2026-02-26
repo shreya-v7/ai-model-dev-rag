@@ -82,3 +82,41 @@ JSON_SCHEMA:
   "uncertainty": "string"
 }}
 """.strip()
+
+
+def build_reference_judge_prompt(
+    *,
+    parent_text: str,
+    source_type: str,
+    quote: str,
+    chunk_text: str,
+) -> str:
+    return f"""
+TASK:
+Validate whether the quote is truly supported by the retrieved chunk.
+You are acting as a strict reference judge.
+
+SOURCE_TYPE:
+{source_type}
+
+PARENT_TEXT:
+{parent_text}
+
+QUOTE:
+{quote}
+
+CHUNK_TEXT:
+{chunk_text}
+
+Return strict JSON only:
+{{
+  "verdict": "valid|weak|invalid",
+  "score": 1,
+  "reasoning": "short explanation"
+}}
+
+Scoring guide:
+- 5: exact and clearly relevant support
+- 3: partially supported or ambiguous
+- 1: unsupported or contradictory
+""".strip()

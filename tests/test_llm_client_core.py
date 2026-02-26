@@ -107,6 +107,7 @@ def test_get_llm_client_unknown_provider(monkeypatch) -> None:
 def test_get_llm_client_routes_to_grok(monkeypatch) -> None:
     monkeypatch.setenv("OFFLINE_MODE", "0")
     monkeypatch.setenv("LLM_PROVIDER", "grok")
+    monkeypatch.setattr("src.config.GROK_API_KEY", "dummy-test-key", raising=False)
     monkeypatch.setattr("src.llm_client.GrokClient", lambda: "grok-client")
     assert get_llm_client() == "grok-client"
 

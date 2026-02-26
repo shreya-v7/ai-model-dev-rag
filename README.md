@@ -1,95 +1,116 @@
 # ai-model-dev-rag
 
-Reusable RAG skeleton and Streamlit portal for ingesting 10-20 documents, synthesizing cross-document insights, separating claims vs evidence, and attaching references to source chunks.
+Production-grade RAG pipeline and Streamlit portal with modular architecture, prompt-injection safeguards, deterministic offline mode, CI/CD quality gates, and test coverage enforcement.
 
-## What this includes
+## Key Features
 
-- Shared, `.env`-driven LLM API configuration reused from `llm-carbon-footprint-research-portal`.
-- Provider-agnostic LLM client (`grok` and `azure_openai`) with retry/backoff and throttling.
-- Streamlit portal with controlled upload count input and upload limit enforcement.
-- Document ingestion for `pdf`, `txt`, `md`, `rst`, `json`, `csv`.
-- Chunking + embedding retrieval using `sentence-transformers`.
-- Structured synthesis output with:
-  - `topic_summary`
-  - `claims[]`
-  - `evidences[]`
-  - `references[]` as `doc_id`, `chunk_id`, and direct `quote`
-  - `unresolved_questions[]`
-- Retrieval-augmented Q&A over the uploaded corpus with reference-backed answers.
-- Prompt-injection hardening:
-  - suspicious instruction-like lines are filtered during ingestion
-  - model is instructed to treat document text as untrusted
-  - references are post-validated against real chunk text
+- Modular service-oriented pipeline (`src/pipeline.py` + `RagService`).
+- Robust document ingestion and chunking with upload validation.
+- Retrieval grounding with quote verification (`src/grounding.py`).
+- LLM abstraction with retries and provider routing (`grok`, `azure_openai`, `mock`).
+- Deterministic offline mode for no-key demos (`LLM_PROVIDER=mock`, `EMBED_PROVIDER=hash`).
+- Security-oriented prompt design and ingestion sanitization.
+- CI/CD workflows for lint, tests, security scans, and container build.
+- Test suite with `>=80%` coverage gate.
+
+## Architecture
+
+- `src/config.py`: environment-driven config and runtime bootstrap.
+- `src/security.py`: upload policies, prompt-injection line filtering, quote checks.
+- `src/ingest.py`: document loading + sanitization + chunk generation.
+- `src/retrieval.py`: retrieval engine with sentence-transformer or hash embedder.
+- `src/llm_client.py`: provider clients + deterministic offline mock.
+- `src/grounding.py`: citation grounding enforcement.
+- `src/pipeline.py`: corpus indexing and application service orchestration.
+- `src/ui/streamlit_app.py`: Streamlit interface adapter.
+- `src/main.py`: CLI interface adapter.
 
 ## Setup
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.txt -r requirements-dev.txt
 cp .env.example .env
 ```
 
-Fill `.env` with your API keys.
-
-## Run
-
-### CLI
+## Run (Online)
 
 ```bash
 python -m src.main \
-  --topic "Synthesize the key carbon accounting assumptions across these documents" \
-  --docs /absolute/path/doc1.pdf /absolute/path/doc2.txt /absolute/path/doc3.md \
+  --topic "Synthesize the key carbon accounting assumptions across documents" \
+  --docs /absolute/path/doc1.pdf /absolute/path/doc2.txt \
   --output outputs/synthesis_result.json
 ```
-
-### Streamlit Portal
 
 ```bash
 streamlit run src/ui/streamlit_app.py
 ```
 
-Portal flow:
-- set expected number of docs (`UI_MIN_DOCS` to `UI_MAX_DOCS`, default 10-20)
-- upload exactly that many docs
-- run synthesis
-- ask one or more questions (one per line) for retrieval-grounded answers
-- inspect references (`doc_id`, `chunk_id`, quote) in UI
+## Run (Offline, No API Keys)
 
-## Output format
+Use this mode for professor/evaluator demos where internet/API keys are unavailable.
 
-The output JSON is validated by Pydantic schema in `src/models.py`:
+### CLI Offline
 
-- `topic_summary: str`
-- `claims: list[ClaimItem]`
-  - `claim: str`
-  - `confidence: low|medium|high`
-  - `evidences: list[EvidenceItem]`
-    - `statement: str`
-    - `references: list[Reference]`
-      - `doc_id: str`
-      - `chunk_id: str`
-      - `quote: str`
-- `unresolved_questions: list[str]`
-
-## Project structure
-
-```
-src/
-  config.py       # env config + tunables
-  llm_client.py   # provider abstraction and retries
-  security.py     # upload validation + injection filtering + quote checks
-  ingest.py       # document loading and chunking
-  retrieval.py    # embeddings + cosine search
-  prompts.py      # synthesis prompt templates
-  models.py       # structured output schemas
-  pipeline.py     # end-to-end orchestration
-  main.py         # CLI entrypoint
-  ui/
-    streamlit_app.py
+```bash
+python -m src.main \
+  --offline \
+  --topic "Explain the key assumptions" \
+  --docs /absolute/path/doc1.txt /absolute/path/doc2.md \
+  --output outputs/offline_result.json
 ```
 
-## Notes
+### Streamlit Offline
 
-- This is a skeleton intended to be extended.
-- "Perfect" reference identification depends on source document quality and model behavior; this scaffold maximizes grounding by forcing quote-level references and validating that quotes exist in retrieved chunks.
+```bash
+streamlit run src/ui/streamlit_app.py
+```
+
+Then enable **Offline deterministic mode** in the UI.
+
+## Testing and Quality Gates
+
+```bash
+ruff check src tests
+pytest
+pip-audit -r requirements.txt
+bandit -r src -q
+```
+
+Coverage policy is enforced by pytest config:
+- `--cov=src`
+- `--cov-fail-under=80`
+
+## CI/CD
+
+- `.github/workflows/ci.yml`
+  - lint (`ruff`)
+  - tests with coverage gate (`pytest`)
+  - dependency security scan (`pip-audit`)
+  - static security scan (`bandit`)
+  - Docker image build validation
+- `.github/workflows/release.yml`
+  - tag-triggered release image publish to GHCR
+
+## Container
+
+```bash
+docker build -t ai-model-dev-rag:local .
+docker run --rm ai-model-dev-rag:local
+```
+
+## Security Model
+
+- Treats retrieved corpus text as untrusted.
+- Filters suspicious instruction-like lines during ingestion.
+- Uses strict system prompts to enforce instruction hierarchy.
+- Validates quoted references against retrieved chunk text before final output.
+
+See `SECURITY.md` for details.
+
+## Operational Docs
+
+- `docs/deployment.md`
+- `SECURITY.md`
+- `CONTRIBUTING.md`

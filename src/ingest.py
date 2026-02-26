@@ -32,6 +32,27 @@ def _read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="ignore")
 
 
+def _extract_text_for_extension(
+    ext: str,
+    *,
+    path: Path | None = None,
+    raw: bytes | None = None,
+) -> str:
+    if ext == ".pdf":
+        if path is not None:
+            return _read_pdf(path)
+        if raw is not None:
+            return _read_pdf_bytes(raw)
+        raise ValueError("Expected PDF path or bytes.")
+    if ext in {".txt", ".md", ".rst", ".json", ".csv"}:
+        if path is not None:
+            return _read_text(path)
+        if raw is not None:
+            return raw.decode("utf-8", errors="ignore")
+        raise ValueError("Expected text path or bytes.")
+    raise ValueError(f"Unsupported extension: {ext}")
+
+
 def load_documents(paths: list[str]) -> list[Document]:
     if len(paths) > MAX_DOCUMENTS:
         raise ValueError(f"Expected at most {MAX_DOCUMENTS} documents, got {len(paths)}.")
@@ -43,14 +64,7 @@ def load_documents(paths: list[str]) -> list[Document]:
             raise FileNotFoundError(f"File not found: {path}")
 
         ext = validate_extension(path.name)
-        if ext == ".pdf":
-            text = _read_pdf(path)
-        elif ext in {".txt", ".md", ".rst", ".json", ".csv"}:
-            text = _read_text(path)
-        else:
-            raise ValueError(
-                f"Unsupported file type: {path.suffix}. Supported: pdf, txt, md, rst, json, csv."
-            )
+        text = _extract_text_for_extension(ext, path=path)
 
         doc_id = f"DOC-{idx:02d}"
         cleaned, _ = sanitize_text(text)
@@ -58,7 +72,10 @@ def load_documents(paths: list[str]) -> list[Document]:
     return docs
 
 
-def load_uploaded_documents(files: list[UploadedDoc], max_documents: int = MAX_DOCUMENTS) -> tuple[list[Document], int]:
+def load_uploaded_documents(
+    files: list[UploadedDoc],
+    max_documents: int = MAX_DOCUMENTS,
+) -> tuple[list[Document], int]:
     if len(files) > max_documents:
         raise ValueError(f"Expected at most {max_documents} documents, got {len(files)}.")
 
@@ -68,10 +85,7 @@ def load_uploaded_documents(files: list[UploadedDoc], max_documents: int = MAX_D
         ext = validate_extension(uploaded.name)
         raw = uploaded.getvalue()
         validate_upload_size(len(raw))
-        if ext == ".pdf":
-            text = _read_pdf_bytes(raw)
-        else:
-            text = raw.decode("utf-8", errors="ignore")
+        text = _extract_text_for_extension(ext, raw=raw)
         cleaned, filtered = sanitize_text(text)
         filtered_lines_total += filtered
         docs.append(Document(doc_id=f"DOC-{idx:02d}", path=uploaded.name, text=cleaned))

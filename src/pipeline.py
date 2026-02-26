@@ -6,12 +6,12 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from src.grounding import filter_references_with_real_quotes
 from src.ingest import chunk_documents, load_documents, load_uploaded_documents
 from src.llm_client import get_llm_client
-from src.models import QAAnswer, Chunk, Document, SynthesisResult
+from src.models import Chunk, Document, QAAnswer, SynthesisResult
 from src.prompts import SYSTEM_PROMPT, build_qa_prompt, build_synthesis_prompt
 from src.retrieval import Retriever
-from src.security import quote_supported_by_chunk
 
 
 def _render_context_blocks(retrieved_chunks) -> str:
@@ -27,31 +27,6 @@ def _render_context_blocks(retrieved_chunks) -> str:
     return "\n\n".join(blocks)
 
 
-def _chunk_lookup(chunks: list[Chunk]) -> dict[str, Chunk]:
-    return {chunk.chunk_id: chunk for chunk in chunks}
-
-
-def _filter_references_with_real_quotes(result: SynthesisResult | QAAnswer, chunks: list[Chunk]) -> None:
-    lookup = _chunk_lookup(chunks)
-    if isinstance(result, QAAnswer):
-        valid_refs = []
-        for ref in result.references:
-            chunk = lookup.get(ref.chunk_id)
-            if chunk and quote_supported_by_chunk(ref.quote, chunk.text):
-                valid_refs.append(ref)
-        result.references = valid_refs
-        return
-
-    for claim in result.claims:
-        for evidence in claim.evidences:
-            valid_refs = []
-            for ref in evidence.references:
-                chunk = lookup.get(ref.chunk_id)
-                if chunk and quote_supported_by_chunk(ref.quote, chunk.text):
-                    valid_refs.append(ref)
-            evidence.references = valid_refs
-
-
 @dataclass
 class CorpusIndex:
     documents: list[Document]
@@ -60,16 +35,7 @@ class CorpusIndex:
     injection_lines_filtered: int = 0
 
 
-def build_index_from_paths(document_paths: list[str]) -> CorpusIndex:
-    documents = load_documents(document_paths)
-    chunks = chunk_documents(documents)
-    if not chunks:
-        raise ValueError("No text chunks were created from the provided documents.")
-    return CorpusIndex(documents=documents, chunks=chunks, retriever=Retriever(chunks=chunks))
-
-
-def build_index_from_uploads(files, max_documents: int) -> CorpusIndex:
-    documents, filtered_lines = load_uploaded_documents(files=files, max_documents=max_documents)
+def _build_index(documents: list[Document], injection_lines_filtered: int = 0) -> CorpusIndex:
     chunks = chunk_documents(documents)
     if not chunks:
         raise ValueError("No text chunks were created from the provided documents.")
@@ -77,44 +43,84 @@ def build_index_from_uploads(files, max_documents: int) -> CorpusIndex:
         documents=documents,
         chunks=chunks,
         retriever=Retriever(chunks=chunks),
-        injection_lines_filtered=filtered_lines,
+        injection_lines_filtered=injection_lines_filtered,
     )
 
 
-def synthesize_topic(index: CorpusIndex, topic: str, output_json_path: str | None = None) -> SynthesisResult:
-    retrieved = index.retriever.search(topic)
-    contexts = _render_context_blocks(retrieved)
+class RagService:
+    def __init__(self) -> None:
+        self._llm = get_llm_client()
 
-    llm = get_llm_client()
-    prompt = build_synthesis_prompt(topic=topic, contexts=contexts)
-    payload = llm.generate_json(prompt=prompt, system=SYSTEM_PROMPT, max_tokens=3500)
-    result = SynthesisResult.model_validate(payload)
-    _filter_references_with_real_quotes(result, index.chunks)
+    def synthesize_topic(
+        self,
+        index: CorpusIndex,
+        topic: str,
+        output_json_path: str | None = None,
+    ) -> SynthesisResult:
+        retrieved = index.retriever.search(topic)
+        contexts = _render_context_blocks(retrieved)
+        prompt = build_synthesis_prompt(topic=topic, contexts=contexts)
+        payload = self._llm.generate_json(prompt=prompt, system=SYSTEM_PROMPT, max_tokens=3500)
+        result = SynthesisResult.model_validate(payload)
+        filter_references_with_real_quotes(result, index.chunks)
 
-    if output_json_path:
-        out_path = Path(output_json_path).expanduser().resolve()
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(
-            json.dumps(result.model_dump(), indent=2, ensure_ascii=True),
-            encoding="utf-8",
-        )
+        if output_json_path:
+            out_path = Path(output_json_path).expanduser().resolve()
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_text(
+                json.dumps(result.model_dump(), indent=2, ensure_ascii=True),
+                encoding="utf-8",
+            )
+        return result
 
-    return result
+    def answer_question(self, index: CorpusIndex, question: str) -> QAAnswer:
+        retrieved = index.retriever.search(question)
+        contexts = _render_context_blocks(retrieved)
+        prompt = build_qa_prompt(question=question, contexts=contexts)
+        payload = self._llm.generate_json(prompt=prompt, system=SYSTEM_PROMPT, max_tokens=1200)
+        answer = QAAnswer.model_validate(payload)
+        filter_references_with_real_quotes(answer, index.chunks)
+        if not answer.references:
+            answer.uncertainty = (
+                "Insufficient verifiable quotes in retrieved chunks. "
+                "Please refine the question."
+            )
+        return answer
+
+
+_DEFAULT_RAG_SERVICE = RagService()
+
+
+def build_index_from_paths(document_paths: list[str]) -> CorpusIndex:
+    documents = load_documents(document_paths)
+    return _build_index(documents)
+
+
+def build_index_from_uploads(files, max_documents: int) -> CorpusIndex:
+    documents, filtered_lines = load_uploaded_documents(files=files, max_documents=max_documents)
+    return _build_index(documents, injection_lines_filtered=filtered_lines)
+
+
+def synthesize_topic(
+    index: CorpusIndex,
+    topic: str,
+    output_json_path: str | None = None,
+) -> SynthesisResult:
+    return _DEFAULT_RAG_SERVICE.synthesize_topic(
+        index=index,
+        topic=topic,
+        output_json_path=output_json_path,
+    )
 
 
 def answer_question(index: CorpusIndex, question: str) -> QAAnswer:
-    retrieved = index.retriever.search(question)
-    contexts = _render_context_blocks(retrieved)
-    llm = get_llm_client()
-    prompt = build_qa_prompt(question=question, contexts=contexts)
-    payload = llm.generate_json(prompt=prompt, system=SYSTEM_PROMPT, max_tokens=1200)
-    answer = QAAnswer.model_validate(payload)
-    _filter_references_with_real_quotes(answer, index.chunks)
-    if not answer.references:
-        answer.uncertainty = "Insufficient verifiable quotes in retrieved chunks. Please refine the question."
-    return answer
+    return _DEFAULT_RAG_SERVICE.answer_question(index=index, question=question)
 
 
-def run_rag(topic: str, document_paths: list[str], output_json_path: str | None = None) -> SynthesisResult:
+def run_rag(
+    topic: str,
+    document_paths: list[str],
+    output_json_path: str | None = None,
+) -> SynthesisResult:
     index = build_index_from_paths(document_paths)
     return synthesize_topic(index=index, topic=topic, output_json_path=output_json_path)

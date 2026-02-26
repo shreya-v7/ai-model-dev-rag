@@ -11,8 +11,11 @@ ALLOWED_EXTENSIONS = {".pdf", ".txt", ".md", ".rst", ".json", ".csv"}
 
 _INJECTION_PATTERNS = [
     re.compile(r"ignore\s+(all\s+)?previous\s+instructions", re.IGNORECASE),
+    re.compile(r"ignore\s+the\s+above", re.IGNORECASE),
     re.compile(r"system\s+prompt", re.IGNORECASE),
     re.compile(r"developer\s+message", re.IGNORECASE),
+    re.compile(r"you\s+are\s+chatgpt", re.IGNORECASE),
+    re.compile(r"reveal\s+(your\s+)?instructions", re.IGNORECASE),
     re.compile(r"jailbreak", re.IGNORECASE),
     re.compile(r"do\s+not\s+follow", re.IGNORECASE),
     re.compile(r"tool\s+call", re.IGNORECASE),

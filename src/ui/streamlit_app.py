@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 from datetime import datetime
 from pathlib import Path
 
 import streamlit as st
 
-from src.config import TOP_K_PER_CLAIM, UI_MAX_DOCS, UI_MIN_DOCS
+from src.config import TOP_K_PER_CLAIM, UI_MAX_DOCS, UI_MIN_DOCS, bootstrap_runtime_dirs
 from src.models import QAAnswer, SynthesisResult
 from src.pipeline import CorpusIndex, answer_question, build_index_from_uploads, synthesize_topic
 
@@ -90,9 +91,19 @@ def _render_answers(answers: list[QAAnswer]) -> None:
 
 
 def main() -> None:
+    bootstrap_runtime_dirs()
     _init_state()
     st.title("Robust RAG Document Portal")
     _render_security_banner()
+    offline_mode = st.checkbox(
+        "Offline deterministic mode (no API keys)",
+        value=False,
+        help="Uses a deterministic mock LLM and hash embeddings for offline demo runs.",
+    )
+    if offline_mode:
+        os.environ["OFFLINE_MODE"] = "1"
+        os.environ["LLM_PROVIDER"] = "mock"
+        os.environ["EMBED_PROVIDER"] = "hash"
 
     with st.expander("How this portal works", expanded=False):
         st.write(
@@ -101,7 +112,8 @@ def main() -> None:
             "- Docs are chunked and embedded for retrieval.\n"
             "- LLM receives only retrieved chunk context.\n"
             "- Answers must include references (`doc_id`, `chunk_id`, quote).\n"
-            f"- Current retrieval depth per query: top-{TOP_K_PER_CLAIM} chunks."
+            f"- Current retrieval depth per query: top-{TOP_K_PER_CLAIM} chunks.\n"
+            "- Optional offline mode runs without API keys for demos."
         )
 
     expected_docs = st.number_input(
@@ -125,14 +137,18 @@ def main() -> None:
             with st.spinner("Building index and synthesizing..."):
                 try:
                     _enforce_app_rate_limit(1.0)
-                    corpus: CorpusIndex = build_index_from_uploads(uploads, max_documents=expected_docs)
+                    corpus: CorpusIndex = build_index_from_uploads(
+                        uploads,
+                        max_documents=expected_docs,
+                    )
                     synthesis = synthesize_topic(corpus, topic=topic)
                     st.session_state.corpus = corpus
                     st.session_state.synthesis = synthesis
                     st.session_state.qa_results = []
                     st.success(
                         "RAG index ready. "
-                        f"Filtered {corpus.injection_lines_filtered} suspicious lines during ingestion."
+                        f"Filtered {corpus.injection_lines_filtered} suspicious "
+                        "lines during ingestion."
                     )
                 except Exception as exc:
                     st.exception(exc)
@@ -142,7 +158,10 @@ def main() -> None:
 
     st.divider()
     st.subheader("Ask Questions Over Uploaded Corpus")
-    st.caption("Answers are generated from retrieved chunks and include references when verifiable.")
+    st.caption(
+        "Answers are generated from retrieved chunks "
+        "and include references when verifiable."
+    )
     questions_blob = st.text_area(
         "Enter one or more questions (one per line)",
         placeholder="What is the main conclusion?\nWhich assumptions are most uncertain?",

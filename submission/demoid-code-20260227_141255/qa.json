@@ -1,6 +1,0 @@
-{
-  "question": "From S1, S2, S3, S4, which survey most accurately matches P1-P10 on methods, evaluation, and limitations? Rank all and justify with evidence.",
-  "answer": "S4 most accurately matches P1-P10 on methods, evaluation, and limitations, as it provides a comprehensive review of agent benchmarking trends, focusing on realistic and challenging evaluations, which likely aligns with the detailed methodologies and limitations discussed in P1-P10. Ranking: 1. S4 (most relevant due to detailed discussion on realistic benchmarks and evaluation trends); 2-4. S1, S2, S3 (not mentioned in the provided contexts, thus cannot be evaluated or ranked). Justification for S4: It discusses the shift towards realistic and challenging evaluations in agent benchmarking, such as SWE-bench for software engineering and GAIA for general AI assistants, which likely corresponds to the evaluation methodologies in P1-P10. Additionally, it addresses current trends and limitations in benchmarking, such as the need for live benchmarks to keep pace with LLM development, which may align with limitations discussed in P1-P10.",
-  "references": [],
-  "uncertainty": "Insufficient verifiable quotes in retrieved chunks. Please refine the question."
-}

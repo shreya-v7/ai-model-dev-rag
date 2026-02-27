@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
 from dataclasses import dataclass
 
@@ -14,6 +15,8 @@ from src.config import (
     TOP_K_PER_CLAIM,
 )
 from src.models import Chunk
+
+log = logging.getLogger(__name__)
 
 
 def _dot(a: list[float], b: list[float]) -> float:
@@ -75,9 +78,19 @@ class Retriever:
         if offline or provider == "hash":
             self._embedder = HashEmbedder()
         else:
-            from sentence_transformers import SentenceTransformer
+            try:
+                from sentence_transformers import SentenceTransformer
 
-            self._embedder = SentenceTransformer(os.getenv("EMBED_MODEL_NAME", EMBED_MODEL_NAME))
+                self._embedder = SentenceTransformer(
+                    os.getenv("EMBED_MODEL_NAME", EMBED_MODEL_NAME)
+                )
+            except Exception as exc:
+                # Falls back to deterministic hash embeddings when local binary deps are broken.
+                log.warning(
+                    "Falling back to hash embedder because sentence-transformers failed: %s",
+                    exc,
+                )
+                self._embedder = HashEmbedder()
         texts = [chunk.text for chunk in chunks]
         matrix = self._embedder.encode(
             texts,

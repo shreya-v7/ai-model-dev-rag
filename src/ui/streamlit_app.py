@@ -5,10 +5,14 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import time
+import zipfile
 from datetime import datetime
 from pathlib import Path
+from xml.etree import ElementTree as ET
 
+import fitz
 import streamlit as st
 
 from src.config import UI_MAX_DOCS, UI_MIN_DOCS, bootstrap_runtime_dirs
@@ -42,6 +46,7 @@ def _init_state() -> None:
     st.session_state.setdefault("last_llm_call_ts", 0.0)
     st.session_state.setdefault("last_report_path", "")
     st.session_state.setdefault("verifier_result", None)
+    st.session_state.setdefault("paper_validation_agents", None)
     st.session_state.setdefault("activity_logs", [])
     st.session_state.setdefault(
         "pipeline_stats",
@@ -51,6 +56,15 @@ def _init_state() -> None:
             "filtered_lines": 0,
             "claims": 0,
             "answers": 0,
+        },
+    )
+    st.session_state.setdefault(
+        "pipeline_checklist",
+        {
+            "inputs_validated": False,
+            "index_built": False,
+            "synthesis_done": False,
+            "workspace_ready": False,
         },
     )
 
@@ -294,13 +308,6 @@ def _export_comprehensive_report(report: dict) -> str:
     report_path = out / f"comprehensive_report_{ts}.json"
     report_path.write_text(json.dumps(report, indent=2, ensure_ascii=True), encoding="utf-8")
     return str(report_path)
-
-
-def _load_markdown(path: str) -> str:
-    file_path = Path(path)
-    if not file_path.exists():
-        return f"File not found: `{path}`"
-    return file_path.read_text(encoding="utf-8", errors="ignore")
 
 
 def _render_sidebar() -> tuple[int, list, str, str, str]:
@@ -668,76 +675,6 @@ Return strict JSON:
     )
 
 
-def _render_system_design_tab() -> None:
-    st.subheader("Interactive System Design")
-    st.caption("Pick any component to learn what it does and how data moves through the system.")
-
-    st.graphviz_chart(
-        """
-        digraph G {
-            rankdir=LR;
-            user -> ui;
-            ui -> ingest;
-            ingest -> retrieve;
-            retrieve -> llm;
-            llm -> grounding;
-            grounding -> output;
-            output -> user;
-        }
-        """
-    )
-
-    components: dict[str, dict[str, str]] = {
-        "UI Layer": {
-            "files": "src/ui/streamlit_app.py, src/main.py",
-            "role": "Collects input and shows output in a simple flow.",
-            "operations": "Upload docs, trigger synthesis, ask Q&A.",
-        },
-        "Ingestion Layer": {
-            "files": "src/ingest.py, src/security.py",
-            "role": "Reads documents, validates file rules, sanitizes suspicious lines.",
-            "operations": "Type checks, size checks, chunk creation.",
-        },
-        "Retrieval Layer": {
-            "files": "src/retrieval.py",
-            "role": "Finds the most relevant chunks for a topic or question.",
-            "operations": "Embeddings + similarity ranking (online or offline hash).",
-        },
-        "LLM Layer": {
-            "files": "src/llm_client.py, src/prompts.py",
-            "role": "Builds prompts and calls configured model provider.",
-            "operations": "Online providers (Grok/Azure) or offline deterministic mock.",
-        },
-        "Grounding Layer": {
-            "files": "src/grounding.py, src/pipeline.py",
-            "role": "Keeps only references whose quote appears in retrieved text.",
-            "operations": "Reference filtering and uncertainty signaling.",
-        },
-        "Ops and Delivery": {
-            "files": ".github/workflows/ci.yml, .github/workflows/release.yml, Dockerfile",
-            "role": "Automates lint, test, security checks, and builds deployable image.",
-            "operations": "CI quality gates, release image publishing.",
-        },
-    }
-
-    choice = st.selectbox("Choose a component", list(components.keys()))
-    data = components[choice]
-    st.markdown(f"**Role:** {data['role']}")
-    st.markdown(f"**Operations:** {data['operations']}")
-    st.code(data["files"], language="text")
-
-    st.divider()
-    st.markdown("### Project Docs Explorer")
-    docs = {
-        "README": "README.md",
-        "Deployment": "docs/deployment.md",
-        "Security": "SECURITY.md",
-        "Contributing": "CONTRIBUTING.md",
-    }
-    selected_doc = st.radio("Open document", list(docs.keys()), horizontal=True)
-    st.markdown(_load_markdown(docs[selected_doc]))
-
-
 def _render_assignment_tab() -> None:
     st.subheader("Assignment Automation")
     st.caption("Run packaging script in terminal, then review rubric status here.")
@@ -793,6 +730,164 @@ def _render_assignment_tab() -> None:
             st.code(trace_file.read_text(encoding="utf-8"), language="json")
 
 
+def _extract_uploaded_text(uploaded_file) -> str:
+    name = uploaded_file.name.lower()
+    raw = uploaded_file.getvalue()
+    if name.endswith(".pdf"):
+        with fitz.open(stream=raw, filetype="pdf") as pdf:
+            return "\n".join(page.get_text("text") for page in pdf)
+    if name.endswith(".docx"):
+        from io import BytesIO
+
+        with zipfile.ZipFile(BytesIO(raw)) as zf:
+            with zf.open("word/document.xml") as handle:
+                root = ET.fromstring(handle.read())
+        return "\n".join(node.text for node in root.iter() if node.text)
+    return raw.decode("utf-8", errors="ignore")
+
+
+def _basic_paper_checks(text: str, selected_surveys: list[str]) -> dict:
+    lowered = text.lower()
+    required_sections = [
+        "literature summary",
+        "key claims table",
+        "future research directions",
+        "reflection vs survey",
+        "references",
+    ]
+    section_ok = all(section in lowered for section in required_sections)
+    tokens = []
+    for item in re.findall(r"\[([^\]]+)\]", text):
+        tokens.extend(tok.strip() for tok in item.split(","))
+    paper_tokens = [tok for tok in tokens if re.fullmatch(r"P\d+", tok)]
+    survey_tokens = [tok for tok in tokens if re.fullmatch(r"S\d+", tok)]
+    allowed_surveys = set(selected_surveys)
+    survey_policy_ok = bool(survey_tokens) and set(survey_tokens).issubset(allowed_surveys)
+    claims_ok = all(f"C{i}" in text for i in range(1, 11))
+    return {
+        "sections_present": section_ok,
+        "claims_c1_to_c10_present": claims_ok,
+        "paper_citation_count": len(set(paper_tokens)),
+        "paper_citation_ok": len(set(paper_tokens)) >= 7,
+        "survey_citations_detected": sorted(set(survey_tokens)),
+        "survey_policy_ok": survey_policy_ok,
+    }
+
+
+def _run_multi_agent_validation(text: str, selected_surveys: list[str]) -> dict:
+    agent_a = _basic_paper_checks(text, selected_surveys)
+    agent_b = {
+        "paragraphs_with_p_citation_ratio": 0.0,
+        "future_direction_markers": len(re.findall(r"Direction\s+\d+:", text, flags=re.IGNORECASE)),
+    }
+    paragraphs = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
+    if paragraphs:
+        cited = [
+            bool(re.search(r"\[P\d+(?:\s*,\s*P\d+)*\]", para))
+            for para in paragraphs
+        ]
+        agent_b["paragraphs_with_p_citation_ratio"] = round(sum(cited) / len(cited), 3)
+
+    agent_c = {"llm_verdict": "unavailable", "reasoning": ""}
+    try:
+        llm = get_llm_client()
+        prompt = f"""
+You are a strict rubric checker.
+Evaluate if this paper draft text appears compliant with the assignment rubric.
+Allowed comparison surveys: {", ".join(selected_surveys)}.
+Return strict JSON:
+{{
+  "llm_verdict": "pass|warn|fail",
+  "reasoning": "short explanation"
+}}
+
+TEXT:
+{text[:14000]}
+""".strip()
+        payload = llm.generate_json(prompt=prompt, system=SYSTEM_PROMPT, max_tokens=220)
+        agent_c["llm_verdict"] = str(payload.get("llm_verdict", "warn"))
+        agent_c["reasoning"] = str(payload.get("reasoning", ""))
+    except Exception as exc:
+        agent_c["llm_verdict"] = "warn"
+        agent_c["reasoning"] = f"LLM checker unavailable: {exc}"
+
+    return {"agent_a_structure": agent_a, "agent_b_evidence": agent_b, "agent_c_llm": agent_c}
+
+
+def _render_rubric_checklist() -> None:
+    st.subheader("Rubric Checklist")
+    latest_report = None
+    submission_dir = Path("submission")
+    bundles = (
+        sorted([p for p in submission_dir.glob("*-code-*") if p.is_dir()], key=lambda p: p.stat().st_mtime, reverse=True)
+        if submission_dir.exists()
+        else []
+    )
+    if bundles:
+        report_path = bundles[0] / "rubric_report.json"
+        if report_path.exists():
+            latest_report = json.loads(report_path.read_text(encoding="utf-8"))
+
+    checks = {
+        "Inputs validated": st.session_state.pipeline_checklist["inputs_validated"],
+        "Index built": st.session_state.pipeline_checklist["index_built"],
+        "Synthesis completed": st.session_state.pipeline_checklist["synthesis_done"],
+        "Workspace ready": st.session_state.pipeline_checklist["workspace_ready"],
+        "Strict rubric pass (latest bundle)": bool(latest_report and latest_report.get("overall_pass")),
+    }
+    for label, ok in checks.items():
+        st.checkbox(label, value=ok, disabled=True)
+    if latest_report and not latest_report.get("overall_pass"):
+        st.warning(f"Failed checks: {', '.join(latest_report.get('failed_checks', []))}")
+
+
+def _render_system_design_inline() -> None:
+    st.subheader("System Design")
+    st.graphviz_chart(
+        """
+        digraph G {
+            rankdir=LR;
+            UI -> Ingestion -> Retrieval -> LLM -> Grounding -> Outputs;
+            Outputs -> RubricChecks;
+            RubricChecks -> Packaging;
+        }
+        """
+    )
+
+
+def _render_paper_validation_panel(comparison_survey: str) -> None:
+    st.subheader("Evidence Paper Validation")
+    st.caption("Upload your draft paper and validate it with multiple survey references using three agents.")
+    uploaded_paper = st.file_uploader(
+        "Upload evidence paper (pdf/docx/txt/md)",
+        type=["pdf", "docx", "txt", "md"],
+        key="evidence_paper_upload",
+    )
+    selected_surveys = st.multiselect(
+        "Survey references to validate against",
+        options=["S1", "S2", "S3", "S4"],
+        default=[comparison_survey],
+    )
+    if st.button("Run Multi-Agent Validation", use_container_width=True):
+        if uploaded_paper is None:
+            st.error("Upload a paper first.")
+        elif not selected_surveys:
+            st.error("Select at least one survey.")
+        else:
+            text = _extract_uploaded_text(uploaded_paper)
+            st.session_state.paper_validation_agents = _run_multi_agent_validation(text, selected_surveys)
+            _log_event("Multi-agent paper validation completed.")
+    result = st.session_state.paper_validation_agents
+    if not result:
+        return
+    st.markdown("**Agent A: Structure and citation policy**")
+    st.code(json.dumps(result["agent_a_structure"], indent=2, ensure_ascii=True), language="json")
+    st.markdown("**Agent B: Evidence density check**")
+    st.code(json.dumps(result["agent_b_evidence"], indent=2, ensure_ascii=True), language="json")
+    st.markdown("**Agent C: LLM rubric judge**")
+    st.code(json.dumps(result["agent_c_llm"], indent=2, ensure_ascii=True), language="json")
+
+
 def main() -> None:
     bootstrap_runtime_dirs()
     _init_state()
@@ -805,11 +900,18 @@ def main() -> None:
     st.info(
         f"Mode: **{run_mode}** | Flow: **Upload -> Synthesize -> Ask Questions -> Export**"
     )
+    _render_rubric_checklist()
 
     if st.button("Build Index + Run Synthesis", use_container_width=True):
         if data_source == "Upload PDFs" and len(uploads) != expected_docs:
             st.error(f"Please upload exactly {expected_docs} documents. Current: {len(uploads)}.")
         else:
+            st.session_state.pipeline_checklist = {
+                "inputs_validated": True,
+                "index_built": False,
+                "synthesis_done": False,
+                "workspace_ready": False,
+            }
             st.session_state.activity_logs = []
             try:
                 _log_event("Run started.")
@@ -846,6 +948,7 @@ def main() -> None:
                         uploads,
                         max_documents=expected_docs,
                     )
+                st.session_state.pipeline_checklist["index_built"] = True
                 st.session_state.pipeline_stats["documents"] = len(corpus.documents)
                 st.session_state.pipeline_stats["chunks"] = len(corpus.chunks)
                 st.session_state.pipeline_stats["filtered_lines"] = corpus.injection_lines_filtered
@@ -857,6 +960,7 @@ def main() -> None:
 
                 run_status.write("Step 3/4: Retrieving relevant chunks and synthesizing")
                 synthesis = synthesize_topic(corpus, topic=DEFAULT_TOPIC)
+                st.session_state.pipeline_checklist["synthesis_done"] = True
                 st.session_state.pipeline_stats["claims"] = len(synthesis.claims)
                 _log_event(f"Synthesis completed: claims={len(synthesis.claims)}.")
 
@@ -865,6 +969,7 @@ def main() -> None:
                 st.session_state.synthesis = synthesis
                 st.session_state.qa_results = []
                 st.session_state.pipeline_stats["answers"] = 0
+                st.session_state.pipeline_checklist["workspace_ready"] = True
                 run_status.update(label="Pipeline completed.", state="complete")
                 _log_event("Run completed successfully.")
                 st.success(
@@ -875,24 +980,23 @@ def main() -> None:
                 _log_event(f"Pipeline failed: {exc}")
                 st.exception(exc)
 
-    tab_home, tab_functions, tab_qa, tab_verify, tab_assign, tab_design = st.tabs(
-        ["Home", "Functions", "Q&A", "Survey Verifier", "Assignment", "System Design"],
+    st.divider()
+    _render_home_tab(run_mode=run_mode, comparison_survey=comparison_survey)
+    st.divider()
+    _render_workspace_tab(
+        run_mode=run_mode,
+        show_activity_panel=show_activity_panel,
     )
-    with tab_home:
-        _render_home_tab(run_mode=run_mode, comparison_survey=comparison_survey)
-    with tab_functions:
-        _render_workspace_tab(
-            run_mode=run_mode,
-            show_activity_panel=show_activity_panel,
-        )
-    with tab_qa:
-        _render_qa_tab(show_activity_panel=show_activity_panel)
-    with tab_verify:
-        _render_verifier_tab(comparison_survey=comparison_survey)
-    with tab_assign:
-        _render_assignment_tab()
-    with tab_design:
-        _render_system_design_tab()
+    st.divider()
+    _render_qa_tab(show_activity_panel=show_activity_panel)
+    st.divider()
+    _render_verifier_tab(comparison_survey=comparison_survey)
+    st.divider()
+    _render_assignment_tab()
+    st.divider()
+    _render_system_design_inline()
+    st.divider()
+    _render_paper_validation_panel(comparison_survey=comparison_survey)
 
 
 if __name__ == "__main__":

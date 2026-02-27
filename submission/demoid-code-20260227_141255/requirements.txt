@@ -1,7 +1,0 @@
-openai
-python-dotenv
-pydantic
-PyMuPDF
-sentence-transformers
-numpy
-streamlit

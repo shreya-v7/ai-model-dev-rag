@@ -1,5 +1,5 @@
 {
-  "word_count": 1114,
+  "word_count": 3420,
   "claims_present": [
     "C1",
     "C2",
@@ -38,14 +38,14 @@
   },
   "spot_checks": [
     {
-      "claim_id": "C3",
+      "claim_id": "C4",
       "supported": true,
-      "note": "quote from P5 @p. 2, P5: \"Toolformer, which is based on a pretrained GPT-J model (Wang and Komatsuzaki, 20...\""
+      "note": "P8 Abstract verbatim: \"We find that current frontier models can improve on the given baselines, usually by finding better hyperparameters, but do not generate novel hypotheses, algorithms, architectures, or substantial improvements.\""
     },
     {
       "claim_id": "C9",
       "supported": true,
-      "note": "quote from P4 @p. 1, P4: \"we find that GPT-4 as an evaluator cannot distinguish between clearly wrong GPT-...\""
+      "note": "P4 Abstract verbatim: \"we find that GPT-4 as an evaluator cannot distinguish between clearly wrong GPT-4 completions and GPT-4 + ChemCrow performance.\""
     }
   ]
 }

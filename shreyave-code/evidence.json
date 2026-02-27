@@ -4,7 +4,7 @@
     "paper_id": "P6",
     "support_level": "supports",
     "quote": "on two interactive decision making benchmarks (ALFWorld and WebShop), ReAct outperforms imitation and reinforcement learning methods by an absolute success rate of 34% and 10% respectively, while being prompted with only one or two in-context examples.",
-    "location": "p. 1, P6",
+    "location": "Abstract, P6 (arXiv:2210.03629)",
     "explanation": "Directly confirms C1's claim of 34% and 10% absolute improvements over RL and imitation learning on ALFWorld and WebShop with only 1\u20132 in-context examples."
   },
   {
@@ -12,7 +12,7 @@
     "paper_id": "P6",
     "support_level": "supports",
     "quote": "on question answering (HotpotQA) and fact verification (Fever), ReAct overcomes prevalent issues of hallucination and error propagation in chain-of-thought reasoning by interacting with a simple Wikipedia API, and generating human-like task-solving trajectories that are more interpretable than baselines without reasoning traces.",
-    "location": "p. 1, P6",
+    "location": "Abstract, P6 (arXiv:2210.03629)",
     "explanation": "Supports C1's mechanism claim: ReAct reduces hallucination by interleaving Wikipedia lookups with reasoning, specifically on HotpotQA."
   },
   {
@@ -20,7 +20,7 @@
     "paper_id": "P7",
     "support_level": "supports",
     "quote": "Reflexion achieves a 91% pass@1 accuracy on the HumanEval coding benchmark, surpassing the previous state-of-the-art GPT-4 that achieves 80%. We also conduct ablation and analysis studies using different feedback signals, feedback incorporation methods, and agent types.",
-    "location": "p. 1, P7",
+    "location": "Abstract, P7 (arXiv:2303.11366)",
     "explanation": "Verbatim confirmation of C2's 91% pass@1 claim and direct comparison to GPT-4 at 80%."
   },
   {
@@ -28,7 +28,7 @@
     "paper_id": "P7",
     "support_level": "supports",
     "quote": "In this paper, we propose an alternative approach called Reflexion that uses verbal reinforcement to help agents learn from prior failings. Reflexion converts binary or scalar feedback from the environment into verbal feedback in the form of a textual summary, which is then added as additional context for the LLM agent in the next episode.",
-    "location": "p. 2, P7",
+    "location": "Section 1 Introduction, P7 (arXiv:2303.11366)",
     "explanation": "Confirms C2's mechanism claim: Reflexion achieves improvement via verbal reinforcement (textual summaries added as context), not gradient-based weight updates."
   },
   {
@@ -36,7 +36,7 @@
     "paper_id": "P5",
     "support_level": "supports",
     "quote": "Toolformer, which is based on a pretrained GPT-J model (Wang and Komatsuzaki, 2021) with 6.7B parameters, achieves much stronger zero-shot results, clearly outperforming a much larger GPT-3 model (Brown et al., 2020) and several other baselines on various tasks.",
-    "location": "p. 2, P5",
+    "location": "Section 1 / Abstract, P5 (arXiv:2302.04761)",
     "explanation": "Confirms C3's claim that Toolformer (6.7B) outperforms GPT-3 (175B) via self-supervised tool learning on zero-shot tasks."
   },
   {
@@ -44,7 +44,7 @@
     "paper_id": "P5",
     "support_level": "supports",
     "quote": "Toolformer achieves much stronger zero-shot results, clearly outperforming a much larger GPT-3 model (Brown et al., 2020) and several other baselines on various tasks.",
-    "location": "p. 2, P5",
+    "location": "Abstract / Section 1, P5 (arXiv:2302.04761)",
     "explanation": "Confirms C3 from the narrative prose: Toolformer (6.7B) outperforms GPT-3 (175B) on zero-shot tasks. The specific SVAMP numbers (29.4% vs 10.0%) are given in Table 4 of P5."
   },
   {
@@ -52,7 +52,7 @@
     "paper_id": "P8",
     "support_level": "supports",
     "quote": "We find that current frontier models can improve on the given baselines, usually by finding better hyperparameters, but do not generate novel hypotheses, algorithms, architectures, or substantial improvements.",
-    "location": "p. 1, P8",
+    "location": "Abstract, P8 (arXiv:2502.14499)",
     "explanation": "Verbatim confirmation of C4: frontier LLMs on MLGym-Bench improve only through hyperparameter search, not novel algorithmic or architectural invention."
   },
   {
@@ -60,7 +60,7 @@
     "paper_id": "P8",
     "support_level": "supports",
     "quote": "MLGym-Bench focuses on Level 1: Baseline Improvement of the categorisation defined above.",
-    "location": "p. 3, P8",
+    "location": "Section 1.1, P8 (arXiv:2502.14499)",
     "explanation": "Confirms that the benchmark empirically evaluates only Level 1 capability (hyperparameter tuning); no model achieves Level 2 or above, supporting C4's cap claim."
   },
   {
@@ -68,7 +68,7 @@
     "paper_id": "P1",
     "support_level": "supports",
     "quote": "Each idea is implemented and developed into a full paper at a meager cost of less than $15 per paper, illustrating the potential for our framework to democratize research and significantly accelerate scientific progress.",
-    "location": "p. 1, P1",
+    "location": "Abstract, P1 (arXiv:2408.06292)",
     "explanation": "Verbatim confirmation of C5's $15 per paper cost claim for The AI Scientist pipeline."
   },
   {
@@ -76,7 +76,7 @@
     "paper_id": "P1",
     "support_level": "supports",
     "quote": "This process achieves near-human-level performance across multiple evalu ation metrics (e.g. 65% vs. 66% balanced accuracy) when evaluated on ICLR 2022 OpenReview data.",
-    "location": "p. 3, P1",
+    "location": "Abstract / Section intro, P1 (arXiv:2408.06292)",
     "explanation": "Confirms C5 reviewer accuracy. Note: \"evaluation\" is split across PDF lines as \"evalu ation\" due to strings extraction; the verbatim text in the PDF reads \"evaluation\" without the space."
   },
   {
@@ -84,7 +84,7 @@
     "paper_id": "P9",
     "support_level": "supports",
     "quote": "Our 120B model achieves a score of 20.4% versus PaLM 540B's 8.8% on MATH (Chowdhery et al., 2022; Lewkowycz et al., 2022). The 30B model also beats PaLM 540B on this task with 18 times less parameters.",
-    "location": "p. 2, P9",
+    "location": "Section 1 (Introduction / Results Overview), P9 (arXiv:2211.09085)",
     "explanation": "Verbatim confirmation of C6: Galactica 120B scores 20.4% vs PaLM 540B's 8.8% on MATH, and 30B beats 540B with 18\u00d7 fewer parameters."
   },
   {
@@ -92,7 +92,7 @@
     "paper_id": "P9",
     "support_level": "supports",
     "quote": "we outperform Chinchilla on mathematical MMLU with an average score of 41.3% versus 35.7% (Hoffmann et al., 2022).",
-    "location": "p. 1, P9",
+    "location": "Section 1 (Introduction), P9 (arXiv:2211.09085)",
     "explanation": "Supports C6 by showing Galactica's domain-pretrained reasoning outperforms Chinchilla on MMLU math, providing additional context for the MATH result."
   },
   {
@@ -100,7 +100,7 @@
     "paper_id": "P10",
     "support_level": "supports",
     "quote": "we get 44.98%, 38.42% and 40.76% F1 score on BC5CDR, KD-DTI and DDI end-to-end relation extraction tasks respectively, and 78.2% accuracy on PubMedQA, creating a new record.",
-    "location": "p. 1, P10",
+    "location": "Abstract, P10 (Briefings in Bioinformatics, 2022)",
     "explanation": "Verbatim confirmation of C7's exact benchmark figures: 44.98% F1 on BC5CDR, 38.42% on KD-DTI, and 78.2% on PubMedQA."
   },
   {
@@ -108,7 +108,7 @@
     "paper_id": "P10",
     "support_level": "supports",
     "quote": "we propose BioGPT, a domain-specific generative Transformer language model pre-trained on large scale biomedical literature. We evaluate BioGPT on six biomedical NLP tasks and demonstrate that our model outperforms previous models on most tasks.",
-    "location": "p. 1, P10",
+    "location": "Abstract, P10 (Briefings in Bioinformatics, 2022)",
     "explanation": "Confirms C7's characterisation of BioGPT as a domain-pretrained model achieving SOTA across multiple biomedical NLP tasks."
   },
   {
@@ -116,7 +116,7 @@
     "paper_id": "P3",
     "support_level": "supports",
     "quote": "We modified PubMedQA [21] to remove the provided context (so it is closed-book) and found PaperQA beats GPT-4 by 30 points (57.9% to 86.3%).",
-    "location": "p. 2, P3",
+    "location": "Section 3 / Results, P3 (arXiv:2312.07559)",
     "explanation": "Verbatim confirmation of C8: PaperQA achieves 86.3% vs GPT-4's 57.9% on closed-book PubMedQA, a 30-point margin."
   },
   {
@@ -124,7 +124,7 @@
     "paper_id": "P3",
     "support_level": "supports",
     "quote": "PaperQA outperforms all models tested and commercial tools, and is comparable to human experts on LitQA on performance and time, but is significantly cheaper in terms of costs.",
-    "location": "p. 2, P3",
+    "location": "Section 3 / Results, P3 (arXiv:2312.07559)",
     "explanation": "Supports C8's human-parity claim on LitQA, with the important context that LitQA was constructed by the PaperQA authors."
   },
   {
@@ -132,7 +132,7 @@
     "paper_id": "P4",
     "support_level": "supports",
     "quote": "we find that GPT-4 as an evaluator cannot distinguish between clearly wrong GPT-4 completions and GPT-4 + ChemCrow performance.",
-    "location": "p. 1, P4",
+    "location": "Abstract, P4 (arXiv:2304.05376)",
     "explanation": "Verbatim confirmation of C9's evaluator-failure claim: GPT-4 cannot distinguish correct ChemCrow outputs from clearly wrong GPT-4 completions."
   },
   {
@@ -140,7 +140,7 @@
     "paper_id": "P4",
     "support_level": "supports",
     "quote": "13 expert-designed tools, ChemCrow augments the LLM performance in chemistry, and new capabilities emerge. Our evaluation, including both LLM and expert human assessments, demonstrates ChemCrow's effectiveness in automating a diverse set of chemical tasks.",
-    "location": "p. 1, P4",
+    "location": "Abstract, P4 (arXiv:2304.05376)",
     "explanation": "Confirms C9's claim that 13 expert-designed tools were integrated, enabling chemical tasks that GPT-4 alone cannot complete."
   },
   {
@@ -148,7 +148,7 @@
     "paper_id": "P2",
     "support_level": "supports",
     "quote": "Central to our hypothesis generation is the utilization of a large ontological knowledge graph, focusing on biological materials, and developed from around 1,000 scientific papers in this domain [6]. We implemented a novel sampling strategy to extract relevant sub-graphs from this comprehensive knowledge graph.",
-    "location": "p. 2, P2",
+    "location": "Section 1 (Introduction), P2 (arXiv:2409.05556)",
     "explanation": "Verbatim confirmation of C10: SciAgents uses a knowledge graph from ~1,000 papers with hierarchical sub-graph sampling as its core mechanism."
   },
   {
@@ -156,7 +156,7 @@
     "paper_id": "P2",
     "support_level": "supports",
     "quote": "that leverages three core concepts: (1) the use of large-scale ontological knowledge graphs to combine generative AI, ontological representations, and multi-agent modeling",
-    "location": "p. 1, P2",
+    "location": "Section 1 (Introduction), P2 (arXiv:2409.05556)",
     "explanation": "Confirms the three-part architecture of SciAgents: ontological graphs + generative AI + multi-agent modeling for hypothesis generation."
   }
 ]

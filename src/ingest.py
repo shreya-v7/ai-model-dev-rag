@@ -53,9 +53,9 @@ def _extract_text_for_extension(
     raise ValueError(f"Unsupported extension: {ext}")
 
 
-def load_documents(paths: list[str]) -> list[Document]:
-    if len(paths) > MAX_DOCUMENTS:
-        raise ValueError(f"Expected at most {MAX_DOCUMENTS} documents, got {len(paths)}.")
+def load_documents(paths: list[str], max_documents: int = MAX_DOCUMENTS) -> list[Document]:
+    if len(paths) > max_documents:
+        raise ValueError(f"Expected at most {max_documents} documents, got {len(paths)}.")
 
     docs: list[Document] = []
     for idx, raw_path in enumerate(paths, start=1):

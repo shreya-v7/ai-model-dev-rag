@@ -91,8 +91,14 @@ class RagService:
 _DEFAULT_RAG_SERVICE = RagService()
 
 
-def build_index_from_paths(document_paths: list[str]) -> CorpusIndex:
-    documents = load_documents(document_paths)
+def build_index_from_paths(
+    document_paths: list[str],
+    max_documents: int | None = None,
+) -> CorpusIndex:
+    documents = load_documents(
+        document_paths,
+        max_documents=max_documents if max_documents is not None else len(document_paths),
+    )
     return _build_index(documents)
 
 

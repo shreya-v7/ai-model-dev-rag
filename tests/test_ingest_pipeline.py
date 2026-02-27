@@ -44,3 +44,18 @@ def test_answer_question_offline(monkeypatch, tmp_path) -> None:
     answer = answer_question(index, "What assumptions are listed?")
     assert answer.answer
     assert answer.question
+
+
+def test_build_index_from_paths_allows_explicit_max_documents(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("OFFLINE_MODE", "1")
+    monkeypatch.setenv("LLM_PROVIDER", "mock")
+    monkeypatch.setenv("EMBED_PROVIDER", "hash")
+
+    paths: list[str] = []
+    for i in range(11):
+        p = tmp_path / f"doc_{i}.txt"
+        p.write_text("evidence text " * 20, encoding="utf-8")
+        paths.append(str(p))
+
+    index = build_index_from_paths(paths, max_documents=len(paths))
+    assert len(index.documents) == 11

@@ -1,0 +1,17 @@
+{
+  "question": "From S1, S2, S3, S4, which survey most accurately matches P1-P10 on methods, evaluation, and limitations? Rank all and justify with evidence.",
+  "answer": "Based on the provided contexts, only S2 is explicitly mentioned and detailed in the retrieved documents. Therefore, S2 is ranked first as it is the only survey with sufficient information for evaluation. There is no mention or data regarding S1, S3, or S4 in the provided contexts, so they cannot be ranked or assessed for matching P1-P10 on methods, evaluation, and limitations. S2, as described, focuses on evaluating scientific large language models (LLMs) in biological and chemical domains, with specific benchmarks and datasets like SciAssess, SciKnowEval, and others, alongside evaluation frameworks based on Bloom\u2019s taxonomy and SciEval dimensions. However, without direct comparison to P1-P10's specific content, a definitive match cannot be confirmed.",
+  "references": [
+    {
+      "doc_id": "DOC-11",
+      "chunk_id": "CHUNK-0856",
+      "quote": "The evaluation of LLMs is often structured around Bloom\u2019s taxonomy [101, 165], which outlines six cognitive levels of educational learning objectives: Remember, Understand, Apply, Analyze, Evaluate and Create. More recently, SciEval [309] has suggested assessing scientific LLMs across four dimensions: basic knowledge, knowledge application, scientific calculation, and research ability."
+    },
+    {
+      "doc_id": "DOC-11",
+      "chunk_id": "CHUNK-0907",
+      "quote": "Scientific Large Language Models: A Survey on Biological & Chemical Domains 51 \u2022 ExPecto [280] The ExPecto dataset is designed for predicting tissue-specific gene expression from DNA sequences."
+    }
+  ],
+  "uncertainty": "The provided contexts do not include information on S1, S3, or S4, and there is no direct comparison between S2 and P1-P10 regarding methods, evaluation, and limitations. Therefore, a complete ranking and justification for all surveys cannot be provided. Additionally, while S2 is detailed, its specific alignment with P1-P10 remains unclear due to lack of direct evidence linking the two."
+}

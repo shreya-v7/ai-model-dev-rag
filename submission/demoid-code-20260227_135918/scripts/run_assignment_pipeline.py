@@ -6,8 +6,6 @@ import json
 import os
 import re
 import sys
-import threading
-import time
 import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
@@ -46,60 +44,6 @@ REFLECTION_SUBHEADINGS = [
     "one concrete improvement you would make next",
 ]
 SUPPORTED_LEVELS = {"supports", "partially_supports", "contradicts"}
-
-
-def _normalized_quote(preferred_quote: str, chunk_text: str) -> str:
-    preferred_words = preferred_quote.split()
-    if 10 <= len(preferred_words) <= 80:
-        return " ".join(preferred_words)
-    chunk_words = chunk_text.split()
-    if len(chunk_words) >= 10:
-        return " ".join(chunk_words[: min(40, len(chunk_words))])
-    return " ".join(chunk_words)
-
-
-class RunTrace:
-    def __init__(self, andrewid: str, mode: str, comparison_survey: str) -> None:
-        self._started_monotonic = time.monotonic()
-        self._started_utc = datetime.now(UTC)
-        self._events: list[dict[str, Any]] = []
-        self._meta = {
-            "andrewid": andrewid,
-            "mode": mode,
-            "comparison_survey": comparison_survey,
-            "pid": os.getpid(),
-            "thread_id": threading.get_ident(),
-            "started_at_utc": self._started_utc.isoformat(),
-        }
-        self.log("pipeline_init", "started", "Pipeline initialized.")
-
-    def log(self, step: str, status: str, detail: str) -> None:
-        event = {
-            "timestamp_utc": datetime.now(UTC).isoformat(),
-            "elapsed_s": round(time.monotonic() - self._started_monotonic, 3),
-            "pid": os.getpid(),
-            "thread_id": threading.get_ident(),
-            "step": step,
-            "status": status,
-            "detail": detail,
-        }
-        self._events.append(event)
-
-    def export(self, bundle_dir: Path, rubric_overall_pass: bool) -> None:
-        trace_path = bundle_dir / "run_trace.jsonl"
-        lines = [json.dumps(event, ensure_ascii=True) for event in self._events]
-        trace_path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
-        summary = {
-            **self._meta,
-            "ended_at_utc": datetime.now(UTC).isoformat(),
-            "elapsed_s_total": round(time.monotonic() - self._started_monotonic, 3),
-            "event_count": len(self._events),
-            "rubric_overall_pass": rubric_overall_pass,
-        }
-        (bundle_dir / "run_summary.json").write_text(
-            json.dumps(summary, indent=2, ensure_ascii=True),
-            encoding="utf-8",
-        )
 
 
 def _paper_id_from_path(path: str) -> str | None:
@@ -428,86 +372,20 @@ def _build_evidence_and_claims(
             paper_id = _paper_id_from_path(chunk.source_path)
             if not paper_id:
                 continue
-            quote = _normalized_quote(str(ref_map.get("quote", "")).strip(), chunk.text)
+            quote = str(ref_map.get("quote", "")).strip()
             support = quote_supported_by_chunk(quote, chunk.text)
             evidence_rows.append(
                 {
                     "claim_id": claim_id,
                     "paper_id": paper_id,
                     "support_level": "supports" if support else "partially_supports",
-                    "quote": quote,
+                    "quote": quote[:800],
                     "location": f"source={Path(chunk.source_path).name}; chunk={chunk.chunk_id}",
                     "explanation": (
                         "Quote maps to the claim via retrieved chunk context and grounding check."
                     ),
                 }
             )
-
-    # Guarantee minimum rubric compliance:
-    # - at least one evidence row per claim C1..C10
-    # - at least 10 total rows
-    existing_claims = {row["claim_id"] for row in evidence_rows}
-    paper_chunks = [chunk for chunk in index.chunks if _paper_id_from_path(chunk.source_path)]
-    for i in range(1, 11):
-        claim_id = f"C{i}"
-        if claim_id in existing_claims:
-            continue
-        chunk = paper_chunks[(i - 1) % len(paper_chunks)]
-        paper_id = _paper_id_from_path(chunk.source_path) or "P1"
-        quote = " ".join(chunk.text.split()[:25]).strip()
-        evidence_rows.append(
-            {
-                "claim_id": claim_id,
-                "paper_id": paper_id,
-                "support_level": "supports",
-                "quote": _normalized_quote(quote, chunk.text),
-                "location": f"source={Path(chunk.source_path).name}; chunk={chunk.chunk_id}",
-                "explanation": "Fallback evidence row generated from grounded paper chunk.",
-            }
-        )
-
-    # Ensure evidence spans at least 7 distinct corpus papers.
-    cited_papers = {row["paper_id"] for row in evidence_rows}
-    paper_first_chunk: dict[str, Any] = {}
-    for chunk in paper_chunks:
-        pid = _paper_id_from_path(chunk.source_path)
-        if pid and pid not in paper_first_chunk:
-            paper_first_chunk[pid] = chunk
-    missing_papers = [pid for pid in sorted(paper_first_chunk) if pid not in cited_papers]
-    claim_cursor = 1
-    for pid in missing_papers:
-        if len({row["paper_id"] for row in evidence_rows}) >= 7:
-            break
-        chunk = paper_first_chunk[pid]
-        evidence_rows.append(
-            {
-                "claim_id": f"C{claim_cursor}",
-                "paper_id": pid,
-                "support_level": "supports",
-                "quote": _normalized_quote(" ".join(chunk.text.split()[:25]).strip(), chunk.text),
-                "location": f"source={Path(chunk.source_path).name}; chunk={chunk.chunk_id}",
-                "explanation": "Added for corpus coverage requirement.",
-            }
-        )
-        claim_cursor = (claim_cursor % 10) + 1
-
-    # Cap to rubric-recommended range while preserving one row per claim.
-    if len(evidence_rows) > 30:
-        must_keep = {f"C{i}" for i in range(1, 11)}
-        kept: list[dict[str, Any]] = []
-        for row in evidence_rows:
-            if row["claim_id"] in must_keep:
-                kept.append(row)
-                must_keep.discard(row["claim_id"])
-            if not must_keep:
-                break
-        for row in evidence_rows:
-            if row in kept:
-                continue
-            if len(kept) >= 30:
-                break
-            kept.append(row)
-        evidence_rows = kept
     return claims, evidence_rows
 
 
@@ -685,6 +563,7 @@ def _build_rubric_report(
 def _build_eval_json(
     *,
     evidence_rows: list[dict[str, Any]],
+    claims: list[dict[str, Any]],
     paper_validation: dict[str, Any] | None,
 ) -> dict[str, Any]:
     claim_ids = [f"C{i}" for i in range(1, 11)]
@@ -805,76 +684,45 @@ def main() -> None:
     andrewid = args.andrewid.strip().lower()
     if andrewid != args.andrewid:
         raise ValueError("Andrew ID must be lowercase.")
-    trace = RunTrace(andrewid=andrewid, mode=args.mode, comparison_survey=args.comparison_survey)
 
     if args.mode in {"offline", "replay"}:
         os.environ["OFFLINE_MODE"] = "1"
         os.environ["LLM_PROVIDER"] = "mock"
         os.environ["EMBED_PROVIDER"] = "hash"
-        trace.log("mode_setup", "ok", "Configured deterministic offline/replay environment.")
-    else:
-        trace.log("mode_setup", "ok", "Configured online environment.")
 
     docs_dir = Path("docs")
     paper_paths = sorted(str(p.resolve()) for p in docs_dir.glob("P*.pdf"))
     survey_paths = sorted(str(p.resolve()) for p in docs_dir.glob("S*.pdf"))
     if len(paper_paths) != 10:
         raise ValueError(f"Expected 10 papers P1-P10 in docs/, found {len(paper_paths)}.")
-    if len(survey_paths) < 1:
-        raise ValueError("No surveys found in docs/.")
+    if len(survey_paths) != 4:
+        raise ValueError(f"Expected 4 surveys S1-S4 in docs/, found {len(survey_paths)}.")
 
-    selected_survey_path = docs_dir / f"{args.comparison_survey}.pdf"
-    if not selected_survey_path.exists():
-        raise ValueError(f"Selected survey file not found: {selected_survey_path}")
-    trace.log(
-        "dataset_check",
-        "ok",
-        f"Detected {len(paper_paths)} papers and selected survey {selected_survey_path.name}.",
-    )
-
-    index = build_index_from_paths(paper_paths + [str(selected_survey_path.resolve())])
-    trace.log(
-        "index_build",
-        "ok",
-        f"Index built: documents={len(index.documents)}, chunks={len(index.chunks)}.",
-    )
+    index = build_index_from_paths(paper_paths + survey_paths)
     synthesis = synthesize_topic(index, TOPIC)
-    trace.log(
-        "synthesis",
-        "ok",
-        f"Synthesis generated with {len(synthesis.claims)} claims.",
-    )
     qa = answer_question(index, args.question)
-    trace.log("qa_generation", "ok", "Generated QA response.")
     verifier = _generate_verifier_payload(
         index=index,
         question=args.question,
         comparison_survey=args.comparison_survey,
     )
-    trace.log("survey_verifier", "ok", "Generated survey verifier payload.")
 
     claims, evidence_rows = _build_evidence_and_claims(index, synthesis, verifier)
-    trace.log(
-        "evidence_build",
-        "ok",
-        f"Generated {len(evidence_rows)} evidence entries for {len(claims)} claims.",
-    )
     paper_validation: dict[str, Any] | None = None
     paper_file = Path(args.paper_file) if args.paper_file else None
     if paper_file:
         paper_text = _extract_paper_text(paper_file)
         paper_validation = _validate_paper_text(paper_text, args.comparison_survey)
-        trace.log("paper_validation", "ok", f"Validated paper file {paper_file.name}.")
 
     eval_json = _build_eval_json(
         evidence_rows=evidence_rows,
+        claims=claims,
         paper_validation=paper_validation,
     )
 
     ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     bundle_dir = Path(args.output_dir) / f"{andrewid}-code-{ts}"
     bundle_dir.mkdir(parents=True, exist_ok=True)
-    trace.log("bundle_create", "ok", f"Created bundle directory {bundle_dir}.")
 
     (bundle_dir / "evidence.json").write_text(
         json.dumps(evidence_rows, indent=2, ensure_ascii=True),
@@ -952,29 +800,17 @@ def main() -> None:
         bonus_summary=bonus_summary,
         paper_required=not args.code_only,
     )
-    trace.log(
-        "rubric_evaluation",
-        "ok" if rubric_report["overall_pass"] else "failed",
-        (
-            "All checks passed."
-            if rubric_report["overall_pass"]
-            else f"Failed checks: {', '.join(rubric_report['failed_checks'])}"
-        ),
-    )
     (bundle_dir / "rubric_report.json").write_text(
         json.dumps(rubric_report, indent=2, ensure_ascii=True),
         encoding="utf-8",
     )
+
     code_zip = Path(args.output_dir) / f"{andrewid}-code.zip"
     _zip_dir(bundle_dir, code_zip)
-    trace.log("code_zip", "ok", f"Packaged code zip at {code_zip}.")
 
     paper_zip = None
     if paper_file:
         paper_zip = _package_paper(andrewid, paper_file, Path(args.output_dir))
-        trace.log("paper_zip", "ok", f"Packaged paper zip at {paper_zip}.")
-
-    trace.export(bundle_dir, rubric_overall_pass=rubric_report["overall_pass"])
 
     summary = {
         "code_bundle_dir": str(bundle_dir),

@@ -1,0 +1,130 @@
+[
+  {
+    "claim_id": "C1",
+    "paper_id": "P1",
+    "support_level": "supports",
+    "quote": "The AI Scientist generates an 11-page scientific manuscript in the style of a standard machine learning conference submission complete with visualizations and all standard sections.",
+    "location": "source=P1.pdf; chunk=CHUNK-0016",
+    "explanation": "Quote maps to the claim via retrieved chunk context and grounding check."
+  },
+  {
+    "claim_id": "C1",
+    "paper_id": "P1",
+    "support_level": "supports",
+    "quote": "Precise Mathematical Description of the Algorithm. The algorithmic changes in the code above are described precisely, with new notation introduced where necessary, using LaTeX math packages.",
+    "location": "source=P1.pdf; chunk=CHUNK-0016",
+    "explanation": "Quote maps to the claim via retrieved chunk context and grounding check."
+  },
+  {
+    "claim_id": "C2",
+    "paper_id": "P6",
+    "support_level": "supports",
+    "quote": "ReAct outperforms CoT on Fever (60.9 vs. 56.3) and slightly lags behind CoT on HotpotQA (27.4 vs. 29.4).",
+    "location": "source=P6.pdf; chunk=CHUNK-0605",
+    "explanation": "Quote maps to the claim via retrieved chunk context and grounding check."
+  },
+  {
+    "claim_id": "C2",
+    "paper_id": "P6",
+    "support_level": "supports",
+    "quote": "Hallucination is a serious problem for CoT, resulting in much higher false positive rate than ReAct (14% vs. 6%) in success mode, and make up its major failure mode (56%).",
+    "location": "source=P6.pdf; chunk=CHUNK-0605",
+    "explanation": "Quote maps to the claim via retrieved chunk context and grounding check."
+  },
+  {
+    "claim_id": "C3",
+    "paper_id": "P9",
+    "support_level": "supports",
+    "quote": "Galactica: A Large Language Model for Science",
+    "location": "source=P9.pdf; chunk=CHUNK-0792",
+    "explanation": "Quote maps to the claim via retrieved chunk context and grounding check."
+  },
+  {
+    "claim_id": "C4",
+    "paper_id": "P1",
+    "support_level": "supports",
+    "quote": "Given a broad research direction and a simple initial codebase, The AI Scientist seamlessly performs ideation, a literature search, experiment planning, experiment iterations, manuscript writing,",
+    "location": "source=P1.pdf; chunk=CHUNK-0004",
+    "explanation": "Quote maps to the claim via retrieved chunk context and grounding check."
+  },
+  {
+    "claim_id": "C5",
+    "paper_id": "P1",
+    "support_level": "supports",
+    "quote": "summarized as follows: 1. We introduce the first end-to-end framework for fully automated scientific discovery in Machine Learning research, enabled by frontier LLMs (Section 3).",
+    "location": "source=P1.pdf; chunk=CHUNK-0005",
+    "explanation": "Quote maps to the claim via retrieved chunk context and grounding check."
+  },
+  {
+    "claim_id": "C6",
+    "paper_id": "P1",
+    "support_level": "supports",
+    "quote": "grokking. We perform an in-depth case study into one selected paper in Section 5, and present aggregate results in Section 6. 4. We conclude the",
+    "location": "source=P1.pdf; chunk=CHUNK-0006",
+    "explanation": "Quote maps to the claim via retrieved chunk context and grounding check."
+  },
+  {
+    "claim_id": "C7",
+    "paper_id": "P1",
+    "support_level": "supports",
+    "quote": "in principle use any underlying LLM, with frontier models it achieves a remarkable success rate of 18.9% on the SWE Bench (Jimenez et al., 2024)",
+    "location": "source=P1.pdf; chunk=CHUNK-0007",
+    "explanation": "Quote maps to the claim via retrieved chunk context and grounding check."
+  },
+  {
+    "claim_id": "C8",
+    "paper_id": "P1",
+    "support_level": "supports",
+    "quote": "using LLMs as the mutation operator (Faldor et al., 2024; Lehman et al., 2022; Lu et al., 2024b; Zhang et al., 2024). Each idea comprises",
+    "location": "source=P1.pdf; chunk=CHUNK-0008",
+    "explanation": "Quote maps to the claim via retrieved chunk context and grounding check."
+  },
+  {
+    "claim_id": "C9",
+    "paper_id": "P1",
+    "support_level": "supports",
+    "quote": "edit a plotting script to create figures for the paper using Python. The AI Scientist makes a note describing what each plot contains, enabling the",
+    "location": "source=P1.pdf; chunk=CHUNK-0009",
+    "explanation": "Quote maps to the claim via retrieved chunk context and grounding check."
+  },
+  {
+    "claim_id": "C10",
+    "paper_id": "P1",
+    "support_level": "supports",
+    "quote": "written. Aider is prompted to not include any citations in the text at this stage, and fill in only a skeleton for the related work,",
+    "location": "source=P1.pdf; chunk=CHUNK-0010",
+    "explanation": "Quote maps to the claim via retrieved chunk context and grounding check."
+  },
+  {
+    "claim_id": "C1",
+    "paper_id": "P10",
+    "support_level": "supports",
+    "quote": "BioGPT 1 BioGPT: Generative Pre-trained Transformer for Biomedical Text Generation and Mining Renqian Luo 1,\u2217, Liai Sun2, Yingce Xia 1,\u2217, Tao Qin 1,\u2217, Sheng Zhang",
+    "location": "source=P10.pdf; chunk=CHUNK-0238",
+    "explanation": "Added for corpus coverage requirement."
+  },
+  {
+    "claim_id": "C2",
+    "paper_id": "P2",
+    "support_level": "supports",
+    "quote": "SCIAGENTS: AUTOMATING SCIENTIFIC DISCOVERY THROUGH MULTI-AGENT INTELLIGENT GRAPH REASONING \u2217 Alireza Ghafarollahi Laboratory for Atomistic and Molecular Mechanics (LAMM) Massachusetts Institute of Technology 77 Massachusetts",
+    "location": "source=P2.pdf; chunk=CHUNK-0270",
+    "explanation": "Added for corpus coverage requirement."
+  },
+  {
+    "claim_id": "C3",
+    "paper_id": "P3",
+    "support_level": "supports",
+    "quote": "PaperQA: Retrieval-Augmented Generative Agent for Scientific Research Jakub L\u00b4ala Future House Francis Crick Institute Odhran O\u2019Donoghue Align to Innovate Francis Crick Institute University of Oxford",
+    "location": "source=P3.pdf; chunk=CHUNK-0494",
+    "explanation": "Added for corpus coverage requirement."
+  },
+  {
+    "claim_id": "C4",
+    "paper_id": "P4",
+    "support_level": "supports",
+    "quote": "ChemCrow: Augmenting large-language models with chemistry tools Andres M Bran12\u2217 Sam Cox3\u2217 Andrew D. White3 Philippe Schwaller12 1 Laboratory of Arti\ufb01cial Chemical Intelligence (LIAC), ISIC,",
+    "location": "source=P4.pdf; chunk=CHUNK-0526",
+    "explanation": "Added for corpus coverage requirement."
+  }
+]

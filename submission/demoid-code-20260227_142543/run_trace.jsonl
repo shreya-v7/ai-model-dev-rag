@@ -1,0 +1,11 @@
+{"timestamp_utc": "2026-02-27T14:23:29.222228+00:00", "elapsed_s": 0.0, "pid": 51783, "thread_id": 8519200896, "step": "pipeline_init", "status": "started", "detail": "Pipeline initialized."}
+{"timestamp_utc": "2026-02-27T14:23:29.222239+00:00", "elapsed_s": 0.0, "pid": 51783, "thread_id": 8519200896, "step": "mode_setup", "status": "ok", "detail": "Configured deterministic offline/replay environment."}
+{"timestamp_utc": "2026-02-27T14:23:29.222750+00:00", "elapsed_s": 0.001, "pid": 51783, "thread_id": 8519200896, "step": "dataset_check", "status": "ok", "detail": "Detected 10 papers and selected survey S2.pdf."}
+{"timestamp_utc": "2026-02-27T14:23:30.965724+00:00", "elapsed_s": 1.744, "pid": 51783, "thread_id": 8519200896, "step": "index_build", "status": "ok", "detail": "Index built: documents=11, chunks=990."}
+{"timestamp_utc": "2026-02-27T14:24:54.405986+00:00", "elapsed_s": 85.183, "pid": 51783, "thread_id": 8519200896, "step": "synthesis", "status": "ok", "detail": "Synthesis generated with 3 claims."}
+{"timestamp_utc": "2026-02-27T14:25:43.834087+00:00", "elapsed_s": 134.608, "pid": 51783, "thread_id": 8519200896, "step": "qa_generation", "status": "ok", "detail": "Generated QA response."}
+{"timestamp_utc": "2026-02-27T14:25:43.859151+00:00", "elapsed_s": 134.633, "pid": 51783, "thread_id": 8519200896, "step": "survey_verifier", "status": "ok", "detail": "Generated survey verifier payload."}
+{"timestamp_utc": "2026-02-27T14:25:43.863037+00:00", "elapsed_s": 134.637, "pid": 51783, "thread_id": 8519200896, "step": "evidence_build", "status": "ok", "detail": "Generated 16 evidence entries for 10 claims."}
+{"timestamp_utc": "2026-02-27T14:25:43.863208+00:00", "elapsed_s": 134.637, "pid": 51783, "thread_id": 8519200896, "step": "bundle_create", "status": "ok", "detail": "Created bundle directory submission/demoid-code-20260227_142543."}
+{"timestamp_utc": "2026-02-27T14:25:43.867784+00:00", "elapsed_s": 134.641, "pid": 51783, "thread_id": 8519200896, "step": "rubric_evaluation", "status": "failed", "detail": "Failed checks: evidence_entries_valid"}
+{"timestamp_utc": "2026-02-27T14:25:43.870051+00:00", "elapsed_s": 134.644, "pid": 51783, "thread_id": 8519200896, "step": "code_zip", "status": "ok", "detail": "Packaged code zip at submission/demoid-code.zip."}

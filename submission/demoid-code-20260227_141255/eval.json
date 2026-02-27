@@ -1,0 +1,48 @@
+{
+  "word_count": 0,
+  "claims_present": [
+    "C1",
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6",
+    "C7",
+    "C8",
+    "C9",
+    "C10"
+  ],
+  "papers_cited_in_body": [
+    "P1",
+    "P10",
+    "P2",
+    "P3",
+    "P4",
+    "P5",
+    "P6"
+  ],
+  "coverage": {
+    "C1": 2,
+    "C2": 2,
+    "C3": 2,
+    "C4": 2,
+    "C5": 2,
+    "C6": 1,
+    "C7": 1,
+    "C8": 1,
+    "C9": 1,
+    "C10": 1
+  },
+  "spot_checks": [
+    {
+      "claim_id": "C1",
+      "supported": true,
+      "note": "At least one evidence row is present for this claim."
+    },
+    {
+      "claim_id": "C2",
+      "supported": true,
+      "note": "At least one evidence row is present for this claim."
+    }
+  ]
+}

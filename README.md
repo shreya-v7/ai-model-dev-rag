@@ -131,3 +131,7 @@ Outputs under `submission/`:
 - `<andrewid>-code.zip`
 - `<andrewid>-paper.zip` (when `--paper-file` is provided)
 - timestamped code bundle folder containing `evidence.json`, `eval.json`, `prompts.md`, `README.md`
+- run diagnostics in each bundle:
+  - `run_trace.jsonl` (timestamp, pid, thread_id, step, status, detail)
+  - `run_summary.json`
+  - `rubric_report.json`

@@ -1,0 +1,67 @@
+{
+  "mode": "offline",
+  "comparison_survey": "S2",
+  "overall_pass": false,
+  "failed_checks": [
+    "eval_paper_count_ok",
+    "evidence_entry_count_ok",
+    "evidence_every_claim_covered"
+  ],
+  "checks": {
+    "code_required_files_ok": true,
+    "replay_cache_rule_ok": true,
+    "no_secrets_detected": true,
+    "evidence_entry_count_ok": false,
+    "evidence_every_claim_covered": false,
+    "evidence_entries_valid": true,
+    "eval_schema_ok": true,
+    "eval_claims_present_ok": true,
+    "eval_paper_count_ok": false,
+    "eval_spot_checks_ok": true,
+    "bonus_artifacts_generated": true,
+    "paper_submitted": true
+  },
+  "details": {
+    "paper_validation": null,
+    "evidence_validation": {
+      "entry_count": 8,
+      "entry_count_ok": false,
+      "claim_coverage": {
+        "C1": 1,
+        "C2": 0,
+        "C3": 0,
+        "C4": 1,
+        "C5": 1,
+        "C6": 1,
+        "C7": 1,
+        "C8": 1,
+        "C9": 1,
+        "C10": 1
+      },
+      "every_claim_has_evidence": false,
+      "invalid_entries": [],
+      "no_invalid_entries": true
+    },
+    "eval_validation": {
+      "missing_required_keys": [],
+      "claims_present_ok": true,
+      "papers_cited_count_ok": false,
+      "spot_checks_count_ok": true
+    },
+    "code_files_validation": {
+      "required_files_missing": [],
+      "required_files_ok": true,
+      "replay_cache_present": true,
+      "replay_cache_required_ok": true
+    },
+    "secret_scan": {
+      "flagged_files": [],
+      "no_secrets_detected": true
+    },
+    "bonus_summary": {
+      "generated": true,
+      "node_count_estimate": 12,
+      "coverage_papers_estimate": 10
+    }
+  }
+}

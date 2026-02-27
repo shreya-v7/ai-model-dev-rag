@@ -303,7 +303,7 @@ def _load_markdown(path: str) -> str:
     return file_path.read_text(encoding="utf-8", errors="ignore")
 
 
-def _render_sidebar() -> tuple[int, list, str, str]:
+def _render_sidebar() -> tuple[int, list, str, str, str]:
     st.sidebar.title("Portal Controls")
     st.sidebar.caption("Minimal controls only.")
 
@@ -317,6 +317,12 @@ def _render_sidebar() -> tuple[int, list, str, str]:
         "Data source",
         options=["Upload PDFs", "Use docs/*.pdf"],
         index=1,
+    )
+    comparison_survey = st.sidebar.selectbox(
+        "Comparison survey",
+        options=["S1", "S2", "S3", "S4"],
+        index=1,
+        help="Select exactly one survey for reflection and verification.",
     )
     offline_mode = mode.startswith("Offline")
     if offline_mode:
@@ -342,10 +348,10 @@ def _render_sidebar() -> tuple[int, list, str, str]:
             type=["pdf", "txt", "md", "rst", "json", "csv"],
             accept_multiple_files=True,
         )
-    return expected_docs, uploads, mode, data_source
+    return expected_docs, uploads, mode, data_source, comparison_survey
 
 
-def _render_home_tab(run_mode: str) -> None:
+def _render_home_tab(run_mode: str, comparison_survey: str) -> None:
     st.subheader("Home")
     st.caption("Overview and guidance.")
     st.info(
@@ -361,6 +367,8 @@ def _render_home_tab(run_mode: str) -> None:
     )
     st.markdown("**Current mode**")
     st.write(run_mode)
+    st.markdown("**Selected comparison survey**")
+    st.write(comparison_survey)
     st.markdown("**Fixed topic used for synthesis**")
     st.code(DEFAULT_TOPIC, language="text")
 
@@ -488,9 +496,11 @@ def _render_qa_tab(show_activity_panel: bool) -> None:
                 st.warning("No verifiable references for this answer.")
 
 
-def _render_verifier_tab() -> None:
+def _render_verifier_tab(comparison_survey: str) -> None:
     st.subheader("Survey Verifier")
-    st.caption("Choose which survey (S1-S4) most accurately reflects papers (P1-P10).")
+    st.caption(
+        f"Verify whether {comparison_survey} accurately reflects papers P1-P10."
+    )
     question = st.text_area(
         "Verification question",
         placeholder=(
@@ -537,10 +547,10 @@ def _render_verifier_tab() -> None:
             survey_context = render_chunks(survey_chunks, "S")
             paper_context = render_chunks(paper_chunks, "P")
 
-            status.write("Step 2/3: Running comparative judge")
+            status.write("Step 2/3: Running survey fidelity judge")
             prompt = f"""
 You are an expert technical reviewer.
-Goal: determine which survey among S1-S4 best matches evidence from papers P1-P10.
+Goal: determine whether {comparison_survey} accurately reflects evidence from papers P1-P10.
 Be strict and technically accurate.
 
 QUESTION:
@@ -554,18 +564,24 @@ PAPER_CONTEXTS:
 
 Return strict JSON:
 {{
-  "best_survey": "S1|S2|S3|S4|none",
+  "survey": "{comparison_survey}",
+  "fidelity_verdict": "high|medium|low",
   "confidence": "low|medium|high",
-  "ranking": [
+  "aligned_points": [
     {{
-      "survey": "S1",
-      "score": 0,
-      "justification": "short technical reason",
+      "point": "claim that aligns",
       "supporting_paper_refs": [{{"doc_id":"", "chunk_id":"", "quote":""}}],
       "survey_refs": [{{"doc_id":"", "chunk_id":"", "quote":""}}]
     }}
   ],
-  "final_answer": "clear final recommendation"
+  "mismatches": [
+    {{
+      "issue": "where survey diverges or overstates",
+      "supporting_paper_refs": [{{"doc_id":"", "chunk_id":"", "quote":""}}],
+      "survey_refs": [{{"doc_id":"", "chunk_id":"", "quote":""}}]
+    }}
+  ],
+  "final_answer": "clear verdict for this survey"
 }}
 """.strip()
 
@@ -580,7 +596,17 @@ Return strict JSON:
 
             status.write("Step 3/3: Validating returned references")
             chunk_lookup = {chunk.chunk_id: chunk for chunk in index.chunks}
-            for row in payload.get("ranking", []):
+            for row in payload.get("aligned_points", []):
+                for ref_key in ("supporting_paper_refs", "survey_refs"):
+                    refs = row.get(ref_key, [])
+                    valid_refs = []
+                    for ref in refs:
+                        chunk = chunk_lookup.get(ref.get("chunk_id", ""))
+                        quote = str(ref.get("quote", ""))
+                        if chunk and quote_supported_by_chunk(quote, chunk.text):
+                            valid_refs.append(ref)
+                    row[ref_key] = valid_refs
+            for row in payload.get("mismatches", []):
                 for ref_key in ("supporting_paper_refs", "survey_refs"):
                     refs = row.get(ref_key, [])
                     valid_refs = []
@@ -600,14 +626,28 @@ Return strict JSON:
         st.info("No verifier result yet.")
         return
 
-    st.markdown(f"**Best survey:** {result.get('best_survey', 'unknown')}")
+    st.markdown(f"**Survey:** {result.get('survey', comparison_survey)}")
+    st.markdown(f"**Fidelity verdict:** {result.get('fidelity_verdict', 'unknown')}")
     st.markdown(f"**Confidence:** {result.get('confidence', 'unknown')}")
     st.markdown(f"**Recommendation:** {result.get('final_answer', '')}")
-    for row in result.get("ranking", []):
-        survey = row.get("survey", "unknown")
-        score = row.get("score", 0)
-        with st.expander(f"{survey} (score={score})", expanded=False):
-            st.write(row.get("justification", ""))
+    for idx, row in enumerate(result.get("aligned_points", []), start=1):
+        with st.expander(f"Aligned point {idx}", expanded=False):
+            st.write(row.get("point", ""))
+            st.markdown("Paper references")
+            for ref in row.get("supporting_paper_refs", []):
+                st.code(
+                    f"[{ref.get('doc_id')} | {ref.get('chunk_id')}] {ref.get('quote')}",
+                    language="text",
+                )
+            st.markdown("Survey references")
+            for ref in row.get("survey_refs", []):
+                st.code(
+                    f"[{ref.get('doc_id')} | {ref.get('chunk_id')}] {ref.get('quote')}",
+                    language="text",
+                )
+    for idx, row in enumerate(result.get("mismatches", []), start=1):
+        with st.expander(f"Mismatch {idx}", expanded=False):
+            st.write(row.get("issue", ""))
             st.markdown("Paper references")
             for ref in row.get("supporting_paper_refs", []):
                 st.code(
@@ -698,6 +738,61 @@ def _render_system_design_tab() -> None:
     st.markdown(_load_markdown(docs[selected_doc]))
 
 
+def _render_assignment_tab() -> None:
+    st.subheader("Assignment Automation")
+    st.caption("Run packaging script in terminal, then review rubric status here.")
+    st.code(
+        "python3 scripts/run_assignment_pipeline.py "
+        "--andrewid <andrewid-lowercase> "
+        "--mode offline "
+        "--comparison-survey S2 "
+        "--paper-file /absolute/path/to/paper.docx",
+        language="bash",
+    )
+    st.code(
+        "python3 scripts/run_assignment_pipeline.py "
+        "--andrewid <andrewid-lowercase> "
+        "--mode online "
+        "--comparison-survey S2 "
+        "--paper-file /absolute/path/to/paper.docx",
+        language="bash",
+    )
+    submission_dir = Path("submission")
+    if not submission_dir.exists():
+        st.info("No submission artifacts found yet.")
+        return
+    bundles = sorted(
+        [path for path in submission_dir.glob("*-code-*") if path.is_dir()],
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    if not bundles:
+        st.info("No code bundle folders found yet.")
+        return
+    latest = bundles[0]
+    st.markdown(f"**Latest bundle:** `{latest}`")
+    rubric_file = latest / "rubric_report.json"
+    if not rubric_file.exists():
+        st.warning("rubric_report.json not found in latest bundle.")
+        return
+    report = json.loads(rubric_file.read_text(encoding="utf-8"))
+    status = "PASS" if report.get("overall_pass") else "FAIL"
+    st.metric("Rubric status", status)
+    failed = report.get("failed_checks", [])
+    if failed:
+        st.error("Failed checks")
+        for item in failed:
+            st.write(f"- {item}")
+    else:
+        st.success("All strict checks passed.")
+    with st.expander("Full rubric report JSON", expanded=False):
+        st.code(json.dumps(report, indent=2, ensure_ascii=True), language="json")
+    trace_file = latest / "run_trace.jsonl"
+    if trace_file.exists():
+        with st.expander("Run trace (timestamp, pid, thread, step)", expanded=False):
+            st.code(trace_file.read_text(encoding="utf-8"), language="json")
+
+
 def main() -> None:
     bootstrap_runtime_dirs()
     _init_state()
@@ -705,7 +800,7 @@ def main() -> None:
     st.title("RAG Learning Portal")
     st.caption("Guided workspace for synthesis, evidence tracking, and Q&A.")
 
-    expected_docs, uploads, run_mode, data_source = _render_sidebar()
+    expected_docs, uploads, run_mode, data_source, comparison_survey = _render_sidebar()
     show_activity_panel = True
     st.info(
         f"Mode: **{run_mode}** | Flow: **Upload -> Synthesize -> Ask Questions -> Export**"
@@ -724,10 +819,28 @@ def main() -> None:
 
                 run_status.write("Step 2/4: Chunking documents and building index")
                 if data_source == "Use docs/*.pdf":
-                    doc_paths = sorted(str(path.resolve()) for path in Path("docs").glob("*.pdf"))
+                    paper_paths = sorted(
+                        str(path.resolve()) for path in Path("docs").glob("P*.pdf")
+                    )
+                    survey_paths = sorted(
+                        str(path.resolve())
+                        for path in Path("docs").glob(f"{comparison_survey}.pdf")
+                    )
+                    doc_paths = paper_paths + survey_paths
+                    if len(paper_paths) != 10:
+                        raise ValueError(
+                            f"Expected 10 paper PDFs (P1-P10). Found {len(paper_paths)}."
+                        )
+                    if len(survey_paths) != 1:
+                        raise ValueError(
+                            f"Expected exactly one selected survey file for {comparison_survey}."
+                        )
                     if not doc_paths:
                         raise ValueError("No PDF files found in docs/ folder.")
-                    corpus = build_index_from_paths(doc_paths)
+                    corpus = build_index_from_paths(
+                        doc_paths,
+                        max_documents=len(doc_paths),
+                    )
                 else:
                     corpus = build_index_from_uploads(
                         uploads,
@@ -762,11 +875,11 @@ def main() -> None:
                 _log_event(f"Pipeline failed: {exc}")
                 st.exception(exc)
 
-    tab_home, tab_functions, tab_qa, tab_verify, tab_design = st.tabs(
-        ["Home", "Functions", "Q&A", "Survey Verifier", "System Design"],
+    tab_home, tab_functions, tab_qa, tab_verify, tab_assign, tab_design = st.tabs(
+        ["Home", "Functions", "Q&A", "Survey Verifier", "Assignment", "System Design"],
     )
     with tab_home:
-        _render_home_tab(run_mode=run_mode)
+        _render_home_tab(run_mode=run_mode, comparison_survey=comparison_survey)
     with tab_functions:
         _render_workspace_tab(
             run_mode=run_mode,
@@ -775,7 +888,9 @@ def main() -> None:
     with tab_qa:
         _render_qa_tab(show_activity_panel=show_activity_panel)
     with tab_verify:
-        _render_verifier_tab()
+        _render_verifier_tab(comparison_survey=comparison_survey)
+    with tab_assign:
+        _render_assignment_tab()
     with tab_design:
         _render_system_design_tab()
 

@@ -48,16 +48,6 @@ REFLECTION_SUBHEADINGS = [
 SUPPORTED_LEVELS = {"supports", "partially_supports", "contradicts"}
 
 
-def _normalized_quote(preferred_quote: str, chunk_text: str) -> str:
-    preferred_words = preferred_quote.split()
-    if 10 <= len(preferred_words) <= 80:
-        return " ".join(preferred_words)
-    chunk_words = chunk_text.split()
-    if len(chunk_words) >= 10:
-        return " ".join(chunk_words[: min(40, len(chunk_words))])
-    return " ".join(chunk_words)
-
-
 class RunTrace:
     def __init__(self, andrewid: str, mode: str, comparison_survey: str) -> None:
         self._started_monotonic = time.monotonic()
@@ -428,14 +418,14 @@ def _build_evidence_and_claims(
             paper_id = _paper_id_from_path(chunk.source_path)
             if not paper_id:
                 continue
-            quote = _normalized_quote(str(ref_map.get("quote", "")).strip(), chunk.text)
+            quote = str(ref_map.get("quote", "")).strip()
             support = quote_supported_by_chunk(quote, chunk.text)
             evidence_rows.append(
                 {
                     "claim_id": claim_id,
                     "paper_id": paper_id,
                     "support_level": "supports" if support else "partially_supports",
-                    "quote": quote,
+                    "quote": quote[:800],
                     "location": f"source={Path(chunk.source_path).name}; chunk={chunk.chunk_id}",
                     "explanation": (
                         "Quote maps to the claim via retrieved chunk context and grounding check."
@@ -460,7 +450,7 @@ def _build_evidence_and_claims(
                 "claim_id": claim_id,
                 "paper_id": paper_id,
                 "support_level": "supports",
-                "quote": _normalized_quote(quote, chunk.text),
+                "quote": quote,
                 "location": f"source={Path(chunk.source_path).name}; chunk={chunk.chunk_id}",
                 "explanation": "Fallback evidence row generated from grounded paper chunk.",
             }
@@ -484,7 +474,7 @@ def _build_evidence_and_claims(
                 "claim_id": f"C{claim_cursor}",
                 "paper_id": pid,
                 "support_level": "supports",
-                "quote": _normalized_quote(" ".join(chunk.text.split()[:25]).strip(), chunk.text),
+                "quote": " ".join(chunk.text.split()[:25]).strip(),
                 "location": f"source={Path(chunk.source_path).name}; chunk={chunk.chunk_id}",
                 "explanation": "Added for corpus coverage requirement.",
             }

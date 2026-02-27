@@ -1,0 +1,12 @@
+{
+  "question": "Offline question",
+  "answer": "Offline deterministic answer generated from retrieved context only.",
+  "references": [
+    {
+      "doc_id": "DOC-00",
+      "chunk_id": "CHUNK-0000",
+      "quote": "No context provided."
+    }
+  ],
+  "uncertainty": "This is a mock offline answer intended for reproducible demonstrations."
+}

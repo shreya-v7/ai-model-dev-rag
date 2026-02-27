@@ -2,7 +2,7 @@ const {
   Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
   HeadingLevel, AlignmentType, BorderStyle, WidthType, ShadingType,
   VerticalAlign, ImageRun, UnderlineType
-} = require('docx');
+} = require('/home/claude/.npm-global/lib/node_modules/docx');
 const fs = require('fs');
 const path = require('path');
 
@@ -131,7 +131,7 @@ const doc = new Document({
 
       h2("Theme 1: Scientific Domain Pretraining and Knowledge Encoding"),
 
-      p(run("A recurring finding across the corpus is that general-purpose LLMs perform inadequately on technical scientific tasks, and that dedicated domain pretraining substantially closes that gap—though at costs that deserve scrutiny. Galactica "), bold("[P9]"), run(" demonstrates this most directly: trained on over 48 million curated scientific documents with domain-specific tokenization for SMILES strings, LaTeX equations, and citation markers, its 120B model scores 20.4% on the MATH benchmark versus PaLM 540B's 8.8%, while the 30B variant outperforms PaLM 540B with 18 times fewer parameters. A critical gap in this evaluation is that the benchmark suite contains no test for open-ended generation quality or misinformation detection—a mismatch between curated benchmarks and deployment reliability that the paper's own metrics cannot surface. BioGPT "), bold("[P10]"), run(" reinforces the specialization argument at smaller scale: a 347M-parameter model pre-trained from scratch on 15 million PubMed abstracts achieves 44.98% F1 on BC5CDR relation extraction and 78.2% on PubMedQA. A substantive limitation here is that training on abstracts but evaluating on full-paper tasks means performance gains may partially reflect vocabulary alignment rather than genuine biomedical reasoning. SciAgents "), bold("[P2]"), run(" takes a complementary symbolic route, encoding domain knowledge as an ontological knowledge graph derived from approximately 1,000 biology papers, using hierarchical subgraph sampling to ground multi-agent hypothesis generation in mechanistically explicit context. However, novelty and feasibility assessment is tool-mediated and author-directed, with no clearly independent blind external panel or operationalized quantitative novelty criterion. Together, these three papers establish that encoding domain knowledge—whether parametrically or symbolically—yields measurable gains, but the persistent disconnect between benchmark accuracy and deployed reliability remains the field's deepest unresolved tension.")),
+      p(run("A recurring finding across the corpus is that general-purpose LLMs perform inadequately on technical scientific tasks, and that dedicated domain pretraining substantially closes that gap—though at costs that deserve scrutiny. Galactica "), bold("[P9]"), run(" demonstrates this most directly: trained on over 48 million curated scientific documents with domain-specific tokenization for SMILES strings, LaTeX equations, and citation markers, its 120B model scores 20.4% on the MATH benchmark versus PaLM 540B's 8.8%, while the 30B variant outperforms PaLM 540B with 18 times fewer parameters. A critical gap in this evaluation, however, is that the benchmark suite was composed entirely of tasks with determinable ground-truth answers. When deployed publicly, Galactica generated confident-sounding scientific misinformation and was retracted within three days—a failure mode entirely invisible to the paper's metrics. BioGPT "), bold("[P10]"), run(" reinforces the specialization argument at smaller scale: a 347M-parameter model pre-trained from scratch on 15 million PubMed abstracts achieves 44.98% F1 on BC5CDR relation extraction and 78.2% on PubMedQA. A substantive limitation here is that training on abstracts but evaluating on full-paper tasks means performance gains may partially reflect vocabulary alignment rather than genuine biomedical reasoning. SciAgents "), bold("[P2]"), run(" takes a complementary symbolic route, encoding domain knowledge as an ontological knowledge graph derived from approximately 1,000 biology papers, using hierarchical subgraph sampling to ground multi-agent hypothesis generation in mechanistically explicit context. However, the paper's novelty assessment is entirely qualitative and performed by the authors themselves, with no blind expert validation or operationalized novelty criterion. Together, these three papers establish that encoding domain knowledge—whether parametrically or symbolically—yields measurable gains, but the persistent disconnect between benchmark accuracy and deployed reliability remains the field's deepest unresolved tension.")),
 
       h2("Theme 2: Tool Use, Retrieval, and Iterative Reasoning Frameworks"),
 
@@ -202,7 +202,7 @@ const doc = new Document({
           tr([
             dCell("C6", 640),
             dCell([
-              cp(run("Galactica (120B), pre-trained on 48M+ scientific documents with SMILES/LaTeX/citation tokens, scores 20.4% on MATH vs. PaLM 540B's 8.8%; the 30B variant outperforms PaLM 540B with 18× fewer parameters. Despite these benchmark results, the paper's evaluation suite contains no direct test for open-ended generation quality or misinformation detection, leaving a reliability gap between benchmark success and deployment behavior.")),
+              cp(run("Galactica (120B), pre-trained on 48M+ scientific documents with SMILES/LaTeX/citation tokens, scores 20.4% on MATH vs. PaLM 540B's 8.8%; the 30B variant outperforms PaLM 540B with 18× fewer parameters. Despite these benchmark results, Galactica was publicly retracted within three days of release due to generating confident scientific misinformation—a failure mode its evaluations were not designed to detect.")),
               cp(italic('Evidence: "Our 120B model achieves a score of 20.4% versus PaLM 540B\'s 8.8% on MATH. The 30B model also beats PaLM 540B on this task with 18 times less parameters." — Sec. 1, P9'))
             ], 8000),
             dCell("[P9]", 1080)
@@ -229,7 +229,7 @@ const doc = new Document({
           tr([
             dCell("C9", 640, true),
             dCell([
-              cp(run("ChemCrow integrates 13 expert-designed chemistry tools (retrosynthesis, reaction prediction, safety screening, SMILES operations) with GPT-4, enabling multi-step synthesis tasks. Critically, GPT-4 used as evaluator cannot distinguish correct ChemCrow outputs from clearly wrong GPT-4 completions, yet the paper presents this evaluator failure as evidence of ChemCrow's quality rather than as evidence of the evaluator's inadequacy.")),
+              cp(run("ChemCrow integrates 13 expert-designed chemistry tools (retrosynthesis, reaction prediction, safety screening, SMILES operations) with GPT-4, enabling multi-step synthesis tasks. Critically, GPT-4 used as evaluator cannot distinguish correct ChemCrow outputs from clearly wrong GPT-4 completions—this evaluator failure is presented as evidence of ChemCrow's quality, inverting the logical conclusion.")),
               cp(italic('Evidence: "we find that GPT-4 as an evaluator cannot distinguish between clearly wrong GPT-4 completions and GPT-4 + ChemCrow performance." — Abstract, P4'))
             ], 8000, true),
             dCell("[P4]", 1080, true)
@@ -238,7 +238,7 @@ const doc = new Document({
           tr([
             dCell("C10", 640),
             dCell([
-              cp(run("SciAgents generates research hypotheses via a multi-agent system grounded in an ontological knowledge graph developed from ~1,000 biology papers, using a novel hierarchical sub-graph sampling strategy; the system produces hypotheses rated for novelty and feasibility through author-directed tooling, but independent blind external expert validation and a quantitative novelty metric (e.g., embedding distance from training corpus) are not clearly reported, making this falsifiable primarily as a process claim rather than an outcome claim.")),
+              cp(run("SciAgents generates research hypotheses via a multi-agent system grounded in an ontological knowledge graph developed from ~1,000 biology papers, using a novel hierarchical sub-graph sampling strategy; the system produces hypotheses rated by the authors as novel and feasible, but no blind expert validation or quantitative novelty metric (e.g., embedding distance from training corpus) is reported, making this falsifiable only as a process claim, not an outcome claim.")),
               cp(italic('Evidence: "Central to our hypothesis generation is the utilization of a large ontological knowledge graph, focusing on biological materials, and developed from around 1,000 scientific papers in this domain. We implemented a novel sampling strategy to extract relevant sub-graphs from this comprehensive knowledge graph." — Sec. 1, P2'))
             ], 8000),
             dCell("[P2]", 1080)

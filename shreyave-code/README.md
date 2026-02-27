@@ -16,27 +16,22 @@ The `paper.docx` is generated from `scripts/build_paper.js` using only local fil
 
 | File | Contents |
 |------|----------|
-| `cache/papers_text/P1.txt` … `P10.txt` | Cached corpus text used by quote verification |
+| `cache/papers_text/P1.txt` … `P10.txt` | Raw strings-extracted text from each corpus PDF |
+| `cache/llm_outputs/evidence_draft.json` | Initial evidence draft (overwritten by verified version) |
 
 ## Exact Reproduction Command
 
 ```bash
 # Replay mode — no API keys needed
-pip install -r requirements.txt
-npm install
 python scripts/run_all.py --mode replay
 
 # This will:
 # 1. Verify evidence.json quotes against cache/papers_text/
 # 2. Regenerate eval.json from evidence.json
-# 3. Regenerate taxonomy_figure.png
-# 4. Rebuild paper.docx from scripts/build_paper.js
-# 5. Copy artifacts to outputs/offline/
+# 3. Rebuild paper.docx from scripts/build_paper.js
+# 4. Regenerate taxonomy_figure.png
+# 5. Package both ZIPs
 ```
-
-Artifacts are also copied to separate spaces:
-- Offline replay outputs: `outputs/offline/`
-- Online/full outputs: `outputs/online/`
 
 ## Full Pipeline (requires API keys in .env)
 
@@ -51,20 +46,18 @@ This runs:
 2. Quote retrieval using sentence-transformers embeddings (all-MiniLM-L6-v2)
 3. Claim verification via Grok-3 or o4-mini
 4. Automatic evidence.json and eval.json generation
-5. Syncs artifacts to `outputs/online/`
 
-## Minimal Submission Structure
+## Project Structure
 
 ```
 .
 ├── paper.docx                    # Final paper (also in paper ZIP)
 ├── evidence.json                 # 20 verbatim-quote entries, 2 per claim
 ├── eval.json                     # Self-reported metrics
-├── prompts.md                    # Prompt log
+├── prompts.md                    # Major prompts log
 ├── README.md                     # This file
 ├── .env.example                  # API key template (no real keys)
-├── requirements.txt              # Python dependencies for scripts
-├── package.json                  # Node dependency for docx builder
+├── requirements.txt              # Python dependencies
 ├── scripts/
 │   ├── run_all.py                # Main entry point
 │   ├── extract_text.py           # PDF strings extraction
@@ -73,21 +66,27 @@ This runs:
 │   ├── generate_figure.py        # Generate taxonomy_figure.png
 │   └── build_paper.js            # Build paper.docx (Node.js)
 └── cache/
-    └── papers_text/              # P1.txt … P10.txt
+    ├── papers_text/              # P1.txt … P10.txt
+    └── llm_outputs/              # Cached LLM responses
 ```
 
-## Word Count Check
+## Word Counts (excluding References)
 
 | Section | Words |
 |---------|-------|
-| Literature Summary | 821 |
+| Literature Summary | ~780 |
+| Key Claims Table | ~420 |
+| Future Directions | ~530 |
+| Taxonomy | ~380 |
+| Reflection | ~580 |
+| **Total** | **~3461** |
 
 ## Dependency Notes
 
 ```
 # Node.js (for paper.docx generation)
-npm install
+npm install docx  # in scripts/ directory
 
 # Python
-pip install -r requirements.txt
+pip install sentence-transformers requests python-dotenv
 ```

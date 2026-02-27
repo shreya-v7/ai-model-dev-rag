@@ -11,13 +11,11 @@ Usage:
 """
 import argparse
 import os
-import shutil
 import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS = os.path.join(ROOT, 'scripts')
-OUT_ROOT = os.path.join(ROOT, 'outputs')
 
 
 def run(cmd: list, label: str):
@@ -27,27 +25,6 @@ def run(cmd: list, label: str):
         print(f'  ERROR: {label} failed with code {result.returncode}', file=sys.stderr)
         sys.exit(result.returncode)
     print(f'  OK')
-
-
-def sync_artifacts(space: str):
-    """Copy final artifacts into a mode-specific output space."""
-    target = os.path.join(OUT_ROOT, space)
-    os.makedirs(target, exist_ok=True)
-    artifacts = [
-        'paper.docx',
-        'evidence.json',
-        'eval.json',
-        'prompts.md',
-        'README.md',
-        'taxonomy_figure.png',
-    ]
-    copied = []
-    for name in artifacts:
-        src = os.path.join(ROOT, name)
-        if os.path.exists(src):
-            shutil.copy2(src, os.path.join(target, name))
-            copied.append(name)
-    print(f'  Copied {len(copied)} artifacts to {target}')
 
 
 def replay_mode():
@@ -74,10 +51,8 @@ def replay_mode():
     else:
         print('  [Step 4] build_paper.js not found — skipping docx rebuild')
 
-    sync_artifacts('offline')
     print('\n=== REPLAY COMPLETE ===')
     print('Artifacts: evidence.json, eval.json, taxonomy_figure.png, paper.docx')
-    print(f'Offline artifact space: {os.path.join(OUT_ROOT, "offline")}')
 
 
 def full_mode():
@@ -102,8 +77,6 @@ def full_mode():
 
     # Steps 2-4: same as replay
     replay_mode()
-    sync_artifacts('online')
-    print(f'Online artifact space: {os.path.join(OUT_ROOT, "online")}')
 
 
 def main():

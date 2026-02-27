@@ -11,14 +11,21 @@ from pathlib import Path
 
 import streamlit as st
 
-from src.config import TOP_K_PER_CLAIM, UI_MAX_DOCS, UI_MIN_DOCS, bootstrap_runtime_dirs
+from src.config import UI_MAX_DOCS, UI_MIN_DOCS, bootstrap_runtime_dirs
 from src.llm_client import get_llm_client
 from src.models import QAAnswer, SynthesisResult
-from src.pipeline import CorpusIndex, answer_question, build_index_from_uploads, synthesize_topic
+from src.pipeline import (
+    CorpusIndex,
+    answer_question,
+    build_index_from_paths,
+    build_index_from_uploads,
+    synthesize_topic,
+)
 from src.prompts import SYSTEM_PROMPT, build_reference_judge_prompt
 from src.security import quote_supported_by_chunk
 
 st.set_page_config(page_title="RAG Learning Portal", layout="wide")
+DEFAULT_TOPIC = "Synthesize key claims and evidence."
 if not logging.getLogger().handlers:
     logging.basicConfig(
         level=logging.INFO,
@@ -34,6 +41,7 @@ def _init_state() -> None:
     st.session_state.setdefault("qa_results", [])
     st.session_state.setdefault("last_llm_call_ts", 0.0)
     st.session_state.setdefault("last_report_path", "")
+    st.session_state.setdefault("verifier_result", None)
     st.session_state.setdefault("activity_logs", [])
     st.session_state.setdefault(
         "pipeline_stats",
@@ -67,6 +75,14 @@ def _log_event(message: str) -> None:
     event = f"{ts} | {message}"
     st.session_state.activity_logs.append(event)
     log.info(message)
+
+
+def _is_survey_path(path: str) -> bool:
+    return Path(path).name.upper().startswith("S")
+
+
+def _is_paper_path(path: str) -> bool:
+    return Path(path).name.upper().startswith("P")
 
 
 def _enforce_app_rate_limit(seconds: float = 1.0) -> None:
@@ -287,15 +303,20 @@ def _load_markdown(path: str) -> str:
     return file_path.read_text(encoding="utf-8", errors="ignore")
 
 
-def _render_sidebar() -> tuple[int, list, str, str, str, bool, bool]:
+def _render_sidebar() -> tuple[int, list, str, str]:
     st.sidebar.title("Portal Controls")
-    st.sidebar.caption("Simple workflow: upload -> synthesize -> ask questions.")
+    st.sidebar.caption("Minimal controls only.")
 
     mode = st.sidebar.radio(
         "Run mode",
         options=["Online (API)", "Offline demo (no keys)"],
         index=0,
         help="Offline mode uses deterministic mock output for classroom demos.",
+    )
+    data_source = st.sidebar.radio(
+        "Data source",
+        options=["Upload PDFs", "Use docs/*.pdf"],
+        index=1,
     )
     offline_mode = mode.startswith("Offline")
     if offline_mode:
@@ -306,70 +327,50 @@ def _render_sidebar() -> tuple[int, list, str, str, str, bool, bool]:
         os.environ["OFFLINE_MODE"] = "0"
 
     st.sidebar.divider()
-    expected_docs = st.sidebar.number_input(
-        "How many documents?",
-        min_value=UI_MIN_DOCS,
-        max_value=UI_MAX_DOCS,
-        value=UI_MIN_DOCS,
-        step=1,
-    )
-    uploads = st.sidebar.file_uploader(
-        "Upload documents",
-        type=["pdf", "txt", "md", "rst", "json", "csv"],
-        accept_multiple_files=True,
-    )
-    topic = st.sidebar.text_input(
-        "Topic",
-        value="Synthesize key claims and evidence.",
-    )
-    judge_policy = st.sidebar.selectbox(
-        "Reference Judge Mode",
-        options=[
-            "A - Always LLM Judge",
-            "B - Optional LLM Judge",
-            "C - LLM with Offline Fallback",
-        ],
-        help="Controls how references are validated for report export.",
-    )
-    enable_llm_judge = True
-    if judge_policy.startswith("B"):
-        enable_llm_judge = st.sidebar.checkbox(
-            "Enable LLM judge for this run",
-            value=False,
+    expected_docs = UI_MIN_DOCS
+    uploads = []
+    if data_source == "Upload PDFs":
+        expected_docs = st.sidebar.number_input(
+            "How many documents?",
+            min_value=UI_MIN_DOCS,
+            max_value=UI_MAX_DOCS,
+            value=UI_MIN_DOCS,
+            step=1,
         )
-    show_activity_panel = st.sidebar.checkbox(
-        "Show pipeline activity panel",
-        value=True,
-        help="Shows each behind-the-scenes step during indexing and synthesis.",
-    )
+        uploads = st.sidebar.file_uploader(
+            "Upload documents",
+            type=["pdf", "txt", "md", "rst", "json", "csv"],
+            accept_multiple_files=True,
+        )
+    return expected_docs, uploads, mode, data_source
 
-    st.sidebar.info(
-        f"Safety features are ON.\n\n"
-        f"- Injection filtering\n"
-        f"- Retrieval-only answers\n"
-        f"- Quote verification\n"
-        f"- Top-{TOP_K_PER_CLAIM} retrieval"
+
+def _render_home_tab(run_mode: str) -> None:
+    st.subheader("Home")
+    st.caption("Overview and guidance.")
+    st.info(
+        "This portal reads uploaded documents, chunks text, retrieves relevant evidence, "
+        "synthesizes grounded claims, and answers questions with references."
     )
-    return (
-        expected_docs,
-        uploads,
-        topic,
-        mode,
-        judge_policy,
-        enable_llm_judge,
-        show_activity_panel,
+    st.markdown("**What this app does**")
+    st.markdown(
+        "- Builds a retrieval index from your files\n"
+        "- Produces topic synthesis with claim/evidence structure\n"
+        "- Answers questions over the same corpus\n"
+        "- Exports a comprehensive report with reference validation"
     )
+    st.markdown("**Current mode**")
+    st.write(run_mode)
+    st.markdown("**Fixed topic used for synthesis**")
+    st.code(DEFAULT_TOPIC, language="text")
 
 
 def _render_workspace_tab(
     *,
-    topic: str,
     run_mode: str,
-    judge_policy: str,
-    enable_llm_judge: bool,
     show_activity_panel: bool,
 ) -> None:
-    st.subheader("Workspace")
+    st.subheader("Functions")
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("Index", "Ready" if st.session_state.corpus else "Not ready")
@@ -387,8 +388,21 @@ def _render_workspace_tab(
 
     synthesis = st.session_state.synthesis
     if synthesis is None:
-        st.info("Use the sidebar to upload files and run synthesis.")
+        st.info("Use sidebar files + 'Build Index + Run Synthesis' to begin.")
         return
+
+    judge_policy = st.radio(
+        "Reference Judge Mode",
+        options=[
+            "A - Always LLM Judge",
+            "B - Optional LLM Judge",
+            "C - LLM with Offline Fallback",
+        ],
+        horizontal=True,
+    )
+    enable_llm_judge = True
+    if judge_policy.startswith("B"):
+        enable_llm_judge = st.checkbox("Enable LLM judge for this export", value=False)
 
     st.markdown(f"**Summary:** {synthesis.topic_summary}")
     for idx, claim in enumerate(synthesis.claims, start=1):
@@ -411,7 +425,7 @@ def _render_workspace_tab(
                 index=st.session_state.corpus,
                 synthesis=synthesis,
                 qa_results=st.session_state.qa_results,
-                topic=topic,
+                topic=DEFAULT_TOPIC,
                 run_mode=run_mode,
                 judge_policy=judge_policy,
                 enable_llm_judge=enable_llm_judge,
@@ -472,6 +486,146 @@ def _render_qa_tab(show_activity_panel: bool) -> None:
                     st.code(f"[{ref.doc_id} | {ref.chunk_id}] {ref.quote}", language="text")
             else:
                 st.warning("No verifiable references for this answer.")
+
+
+def _render_verifier_tab() -> None:
+    st.subheader("Survey Verifier")
+    st.caption("Choose which survey (S1-S4) most accurately reflects papers (P1-P10).")
+    question = st.text_area(
+        "Verification question",
+        placeholder=(
+            "Which survey most accurately captures contributions and limitations from P1-P10, "
+            "and why?"
+        ),
+        height=100,
+    )
+    if st.button("Evaluate S1-S4 against P1-P10", use_container_width=True):
+        index = st.session_state.corpus
+        if index is None:
+            st.error("Build the index first.")
+            return
+        if not question.strip():
+            st.error("Enter a verification question.")
+            return
+
+        _log_event("Survey verifier started.")
+        with st.status("Verifier running...", expanded=True) as status:
+            status.write("Step 1/3: Retrieving survey and paper evidence")
+            retrieved = index.retriever.search(question, top_k=60)
+            survey_chunks = [
+                item for item in retrieved if _is_survey_path(item.chunk.source_path)
+            ][:20]
+            paper_chunks = [
+                item for item in retrieved if _is_paper_path(item.chunk.source_path)
+            ][:30]
+            if not survey_chunks or not paper_chunks:
+                st.error("Could not gather enough survey/paper chunks from retrieval.")
+                status.update(label="Verifier failed.", state="error")
+                return
+
+            def render_chunks(items: list, title: str) -> str:
+                blocks: list[str] = []
+                for idx, item in enumerate(items, start=1):
+                    c = item.chunk
+                    blocks.append(
+                        f"[{title}-{idx}] doc_id={c.doc_id} "
+                        f"chunk_id={c.chunk_id} source={Path(c.source_path).name}\n"
+                        f"text={c.text}"
+                    )
+                return "\n\n".join(blocks)
+
+            survey_context = render_chunks(survey_chunks, "S")
+            paper_context = render_chunks(paper_chunks, "P")
+
+            status.write("Step 2/3: Running comparative judge")
+            prompt = f"""
+You are an expert technical reviewer.
+Goal: determine which survey among S1-S4 best matches evidence from papers P1-P10.
+Be strict and technically accurate.
+
+QUESTION:
+{question}
+
+SURVEY_CONTEXTS:
+{survey_context}
+
+PAPER_CONTEXTS:
+{paper_context}
+
+Return strict JSON:
+{{
+  "best_survey": "S1|S2|S3|S4|none",
+  "confidence": "low|medium|high",
+  "ranking": [
+    {{
+      "survey": "S1",
+      "score": 0,
+      "justification": "short technical reason",
+      "supporting_paper_refs": [{{"doc_id":"", "chunk_id":"", "quote":""}}],
+      "survey_refs": [{{"doc_id":"", "chunk_id":"", "quote":""}}]
+    }}
+  ],
+  "final_answer": "clear final recommendation"
+}}
+""".strip()
+
+            try:
+                llm = get_llm_client()
+                payload = llm.generate_json(prompt=prompt, system=SYSTEM_PROMPT, max_tokens=1800)
+            except Exception as exc:
+                st.error(f"Verifier failed: {exc}")
+                status.update(label="Verifier failed.", state="error")
+                _log_event(f"Survey verifier failed: {exc}")
+                return
+
+            status.write("Step 3/3: Validating returned references")
+            chunk_lookup = {chunk.chunk_id: chunk for chunk in index.chunks}
+            for row in payload.get("ranking", []):
+                for ref_key in ("supporting_paper_refs", "survey_refs"):
+                    refs = row.get(ref_key, [])
+                    valid_refs = []
+                    for ref in refs:
+                        chunk = chunk_lookup.get(ref.get("chunk_id", ""))
+                        quote = str(ref.get("quote", ""))
+                        if chunk and quote_supported_by_chunk(quote, chunk.text):
+                            valid_refs.append(ref)
+                    row[ref_key] = valid_refs
+
+            st.session_state.verifier_result = payload
+            status.update(label="Verifier completed.", state="complete")
+            _log_event("Survey verifier completed.")
+
+    result = st.session_state.verifier_result
+    if not result:
+        st.info("No verifier result yet.")
+        return
+
+    st.markdown(f"**Best survey:** {result.get('best_survey', 'unknown')}")
+    st.markdown(f"**Confidence:** {result.get('confidence', 'unknown')}")
+    st.markdown(f"**Recommendation:** {result.get('final_answer', '')}")
+    for row in result.get("ranking", []):
+        survey = row.get("survey", "unknown")
+        score = row.get("score", 0)
+        with st.expander(f"{survey} (score={score})", expanded=False):
+            st.write(row.get("justification", ""))
+            st.markdown("Paper references")
+            for ref in row.get("supporting_paper_refs", []):
+                st.code(
+                    f"[{ref.get('doc_id')} | {ref.get('chunk_id')}] {ref.get('quote')}",
+                    language="text",
+                )
+            st.markdown("Survey references")
+            for ref in row.get("survey_refs", []):
+                st.code(
+                    f"[{ref.get('doc_id')} | {ref.get('chunk_id')}] {ref.get('quote')}",
+                    language="text",
+                )
+    st.download_button(
+        "Download verifier result JSON",
+        data=json.dumps(result, indent=2, ensure_ascii=True),
+        file_name="survey_verifier_result.json",
+        mime="application/json",
+    )
 
 
 def _render_system_design_tab() -> None:
@@ -551,21 +705,14 @@ def main() -> None:
     st.title("RAG Learning Portal")
     st.caption("Guided workspace for synthesis, evidence tracking, and Q&A.")
 
-    (
-        expected_docs,
-        uploads,
-        topic,
-        run_mode,
-        judge_policy,
-        enable_llm_judge,
-        show_activity_panel,
-    ) = _render_sidebar()
+    expected_docs, uploads, run_mode, data_source = _render_sidebar()
+    show_activity_panel = True
     st.info(
-        f"Mode: **{run_mode}** | Flow: **Upload -> Synthesize -> Ask Questions -> Review Evidence**"
+        f"Mode: **{run_mode}** | Flow: **Upload -> Synthesize -> Ask Questions -> Export**"
     )
 
     if st.button("Build Index + Run Synthesis", use_container_width=True):
-        if len(uploads) != expected_docs:
+        if data_source == "Upload PDFs" and len(uploads) != expected_docs:
             st.error(f"Please upload exactly {expected_docs} documents. Current: {len(uploads)}.")
         else:
             st.session_state.activity_logs = []
@@ -576,10 +723,16 @@ def main() -> None:
                 _enforce_app_rate_limit(1.0)
 
                 run_status.write("Step 2/4: Chunking documents and building index")
-                corpus: CorpusIndex = build_index_from_uploads(
-                    uploads,
-                    max_documents=expected_docs,
-                )
+                if data_source == "Use docs/*.pdf":
+                    doc_paths = sorted(str(path.resolve()) for path in Path("docs").glob("*.pdf"))
+                    if not doc_paths:
+                        raise ValueError("No PDF files found in docs/ folder.")
+                    corpus = build_index_from_paths(doc_paths)
+                else:
+                    corpus = build_index_from_uploads(
+                        uploads,
+                        max_documents=expected_docs,
+                    )
                 st.session_state.pipeline_stats["documents"] = len(corpus.documents)
                 st.session_state.pipeline_stats["chunks"] = len(corpus.chunks)
                 st.session_state.pipeline_stats["filtered_lines"] = corpus.injection_lines_filtered
@@ -590,7 +743,7 @@ def main() -> None:
                 )
 
                 run_status.write("Step 3/4: Retrieving relevant chunks and synthesizing")
-                synthesis = synthesize_topic(corpus, topic=topic)
+                synthesis = synthesize_topic(corpus, topic=DEFAULT_TOPIC)
                 st.session_state.pipeline_stats["claims"] = len(synthesis.claims)
                 _log_event(f"Synthesis completed: claims={len(synthesis.claims)}.")
 
@@ -609,19 +762,20 @@ def main() -> None:
                 _log_event(f"Pipeline failed: {exc}")
                 st.exception(exc)
 
-    tab_workspace, tab_qa, tab_design = st.tabs(
-        ["Workspace", "Q&A", "System Design"],
+    tab_home, tab_functions, tab_qa, tab_verify, tab_design = st.tabs(
+        ["Home", "Functions", "Q&A", "Survey Verifier", "System Design"],
     )
-    with tab_workspace:
+    with tab_home:
+        _render_home_tab(run_mode=run_mode)
+    with tab_functions:
         _render_workspace_tab(
-            topic=topic,
             run_mode=run_mode,
-            judge_policy=judge_policy,
-            enable_llm_judge=enable_llm_judge,
             show_activity_panel=show_activity_panel,
         )
     with tab_qa:
         _render_qa_tab(show_activity_panel=show_activity_panel)
+    with tab_verify:
+        _render_verifier_tab()
     with tab_design:
         _render_system_design_tab()
 

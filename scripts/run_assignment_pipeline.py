@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import os
 import re
@@ -606,6 +607,53 @@ def _check_code_zip_required_files(bundle_dir: Path, mode: str) -> dict[str, Any
     }
 
 
+def _validate_code_zip_policy(code_zip: Path) -> dict[str, Any]:
+    disallowed_patterns = [
+        ".env",
+        ".env.*",
+        "*.pem",
+        "*.key",
+        "*.p12",
+        "*.db",
+        "*.sqlite*",
+        "*.pdf",
+        "*.docx",
+        "*.DS_Store",
+        "__pycache__/*",
+        "*.pyc",
+        "*.pyo",
+    ]
+    disallowed_entries: list[str] = []
+    with zipfile.ZipFile(code_zip) as handle:
+        for entry in handle.namelist():
+            for pattern in disallowed_patterns:
+                if fnmatch.fnmatch(entry, pattern):
+                    disallowed_entries.append(entry)
+                    break
+    return {
+        "zip_path": str(code_zip),
+        "disallowed_entries": sorted(set(disallowed_entries)),
+        "disallowed_entries_ok": not disallowed_entries,
+    }
+
+
+def _validate_paper_zip_policy(paper_zip: Path | None) -> dict[str, Any]:
+    if paper_zip is None:
+        return {
+            "zip_path": "",
+            "entries": [],
+            "single_named_paper_ok": False,
+        }
+    with zipfile.ZipFile(paper_zip) as handle:
+        entries = [name for name in handle.namelist() if not name.endswith("/")]
+    single_named_paper_ok = len(entries) == 1 and entries[0] in {"paper.pdf", "paper.docx"}
+    return {
+        "zip_path": str(paper_zip),
+        "entries": entries,
+        "single_named_paper_ok": single_named_paper_ok,
+    }
+
+
 def _build_rubric_report(
     *,
     mode: str,
@@ -614,6 +662,8 @@ def _build_rubric_report(
     evidence_validation: dict[str, Any],
     eval_validation: dict[str, Any],
     code_files_validation: dict[str, Any],
+    code_zip_validation: dict[str, Any],
+    paper_zip_validation: dict[str, Any],
     secret_scan: dict[str, Any],
     bonus_summary: dict[str, Any],
     paper_required: bool,
@@ -621,6 +671,7 @@ def _build_rubric_report(
     checks: dict[str, bool] = {
         "code_required_files_ok": code_files_validation["required_files_ok"],
         "replay_cache_rule_ok": code_files_validation["replay_cache_required_ok"],
+        "code_zip_policy_ok": code_zip_validation["disallowed_entries_ok"],
         "no_secrets_detected": secret_scan["no_secrets_detected"],
         "evidence_entry_count_ok": evidence_validation["entry_count_ok"],
         "evidence_every_claim_covered": evidence_validation["every_claim_has_evidence"],
@@ -631,6 +682,9 @@ def _build_rubric_report(
         "eval_spot_checks_ok": eval_validation["spot_checks_count_ok"],
         "bonus_artifacts_generated": bonus_summary["generated"],
         "paper_submitted": (paper_validation is not None) if paper_required else True,
+        "paper_zip_policy_ok": (
+            paper_zip_validation["single_named_paper_ok"] if paper_required else True
+        ),
     }
     if paper_validation is not None:
         checks.update(
@@ -676,6 +730,8 @@ def _build_rubric_report(
             "evidence_validation": evidence_validation,
             "eval_validation": eval_validation,
             "code_files_validation": code_files_validation,
+            "code_zip_validation": code_zip_validation,
+            "paper_zip_validation": paper_zip_validation,
             "secret_scan": secret_scan,
             "bonus_summary": bonus_summary,
         },
@@ -767,8 +823,11 @@ def _zip_dir(dir_path: Path, zip_path: Path) -> None:
 
 def _package_paper(andrewid: str, paper_path: Path, output_dir: Path) -> Path:
     paper_zip = output_dir / f"{andrewid}-paper.zip"
+    ext = paper_path.suffix.lower()
+    if ext not in {".pdf", ".docx"}:
+        raise ValueError("Paper zip requires a .pdf or .docx paper file.")
     with zipfile.ZipFile(paper_zip, "w", zipfile.ZIP_DEFLATED) as handle:
-        handle.write(paper_path, arcname=paper_path.name)
+        handle.write(paper_path, arcname=f"paper{ext}")
     return paper_zip
 
 
@@ -932,9 +991,20 @@ def main() -> None:
     (bundle_dir / "taxonomy_bonus.md").write_text(taxonomy_md, encoding="utf-8")
     (bundle_dir / "taxonomy_bonus.mmd").write_text(taxonomy_mmd, encoding="utf-8")
 
+    code_zip = Path(args.output_dir) / f"{andrewid}-code.zip"
+    _zip_dir(bundle_dir, code_zip)
+    trace.log("code_zip", "ok", f"Packaged code zip at {code_zip}.")
+
+    paper_zip = None
+    if paper_file:
+        paper_zip = _package_paper(andrewid, paper_file, Path(args.output_dir))
+        trace.log("paper_zip", "ok", f"Packaged paper zip at {paper_zip}.")
+
     evidence_validation = _validate_evidence_json(evidence_rows)
     eval_validation = _validate_eval_json(eval_json)
     code_files_validation = _check_code_zip_required_files(bundle_dir, args.mode)
+    code_zip_validation = _validate_code_zip_policy(code_zip)
+    paper_zip_validation = _validate_paper_zip_policy(paper_zip)
     secret_scan = _scan_bundle_for_secrets(bundle_dir)
     bonus_summary = {
         "generated": True,
@@ -948,6 +1018,8 @@ def main() -> None:
         evidence_validation=evidence_validation,
         eval_validation=eval_validation,
         code_files_validation=code_files_validation,
+        code_zip_validation=code_zip_validation,
+        paper_zip_validation=paper_zip_validation,
         secret_scan=secret_scan,
         bonus_summary=bonus_summary,
         paper_required=not args.code_only,
@@ -965,14 +1037,6 @@ def main() -> None:
         json.dumps(rubric_report, indent=2, ensure_ascii=True),
         encoding="utf-8",
     )
-    code_zip = Path(args.output_dir) / f"{andrewid}-code.zip"
-    _zip_dir(bundle_dir, code_zip)
-    trace.log("code_zip", "ok", f"Packaged code zip at {code_zip}.")
-
-    paper_zip = None
-    if paper_file:
-        paper_zip = _package_paper(andrewid, paper_file, Path(args.output_dir))
-        trace.log("paper_zip", "ok", f"Packaged paper zip at {paper_zip}.")
 
     trace.export(bundle_dir, rubric_overall_pass=rubric_report["overall_pass"])
 

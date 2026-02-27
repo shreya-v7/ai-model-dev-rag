@@ -1,0 +1,51 @@
+{
+  "word_count": 1114,
+  "claims_present": [
+    "C1",
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6",
+    "C7",
+    "C8",
+    "C9",
+    "C10"
+  ],
+  "papers_cited_in_body": [
+    "P1",
+    "P10",
+    "P2",
+    "P3",
+    "P4",
+    "P5",
+    "P6",
+    "P7",
+    "P8",
+    "P9"
+  ],
+  "coverage": {
+    "C1": 2,
+    "C2": 2,
+    "C3": 2,
+    "C4": 2,
+    "C5": 2,
+    "C6": 2,
+    "C7": 2,
+    "C8": 2,
+    "C9": 2,
+    "C10": 2
+  },
+  "spot_checks": [
+    {
+      "claim_id": "C3",
+      "supported": true,
+      "note": "quote from P5 @p. 2, P5: \"Toolformer, which is based on a pretrained GPT-J model (Wang and Komatsuzaki, 20...\""
+    },
+    {
+      "claim_id": "C9",
+      "supported": true,
+      "note": "quote from P4 @p. 1, P4: \"we find that GPT-4 as an evaluator cannot distinguish between clearly wrong GPT-...\""
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "shreyave-code-repro",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Reproducible mini-survey paper build scripts",
+  "dependencies": {
+    "docx": "^9.5.1"
+  }
+}

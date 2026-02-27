@@ -2,7 +2,7 @@ const {
   Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
   HeadingLevel, AlignmentType, BorderStyle, WidthType, ShadingType,
   VerticalAlign, ImageRun, UnderlineType
-} = require('/home/claude/.npm-global/lib/node_modules/docx');
+} = require('docx');
 const fs = require('fs');
 const path = require('path');
 

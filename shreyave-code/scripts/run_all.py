@@ -15,6 +15,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS = os.path.join(ROOT, 'scripts')
 OUT_ROOT = os.path.join(ROOT, 'outputs')
+CORPUS_DIR = os.path.join(ROOT, 'corpus')
 
 
 def run(cmd: list, label: str):
@@ -44,6 +45,11 @@ def sync_artifacts(space: str):
             shutil.copy2(src, os.path.join(target, name))
             copied += 1
     print(f'  Copied {copied} artifacts to {target}')
+
+
+def _corpus_ready() -> bool:
+    required = [os.path.join(CORPUS_DIR, f'P{i}.pdf') for i in range(1, 11)]
+    return all(os.path.exists(path) for path in required)
 
 
 def replay_mode():
@@ -104,6 +110,11 @@ def full_mode():
     """Full pipeline: extract text → retrieve quotes → verify → generate docs."""
     print('=== FULL PIPELINE MODE ===')
     print('Loading environment variables from .env ...')
+
+    if not _corpus_ready():
+        print('WARNING: corpus/P1..P10.pdf not found. Falling back to replay mode.', file=sys.stderr)
+        replay_mode()
+        return
 
     try:
         from dotenv import load_dotenv

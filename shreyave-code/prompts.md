@@ -2,14 +2,16 @@
 
 ## Automation and Reproducibility Notes
 
-This submission supports **Replay Mode**. All corpus PDFs were processed locally using
-`strings` extraction (no authenticated APIs). The `evidence.json` quotes were extracted
-directly from the local PDF text and verified against the raw strings output.
-The `paper.docx` is generated via `node scripts/build_paper.js` using the `docx` npm package.
+This submission supports two no-key modes:
+- `replay`: deterministic artifact rebuild from existing files.
+- `offline_rag`: end-to-end local RAG from cached corpus text.
 
-To reproduce all artifacts without any API keys:
+All verification/build steps run locally without authenticated APIs. The `paper.docx` is generated via `node scripts/build_paper.js` using the `docx` npm package.
+
+Reproduce without any API keys:
 ```
 python scripts/run_all.py --mode replay
+python scripts/run_all.py --mode offline_rag
 ```
 
 ---
@@ -58,17 +60,17 @@ strings /mnt/project/P8.pdf | grep -n "hyperparameter\|novel.*algorithm"
 - P6: Model-scale confound in RL baseline comparison.
 - P7: Self-generated unit tests as success criterion may produce false positives.
 - P8: Six-level capability hierarchy has only Level 1 empirically populated.
-- P9: Galactica retracted for misinformation; benchmarks did not test for this failure mode.
+- P9: Evaluation emphasizes standard benchmark tasks and does not directly test open-ended misinformation behavior.
 
 ---
 
 ## Prompt 4: Taxonomy Construction
 
-**Tool/Model:** Claude (claude-sonnet-4-6) + matplotlib (local, no API)  
+**Tool/Model:** Claude (claude-sonnet-4-6) + local figure script (Pillow, no API)  
 **Purpose:** Build a 2-level taxonomy with 10+ nodes, 7+ corpus citations, per-node definitions, and a matching diagram.
 
 **Prompt (paraphrase):**
-> "Organise all 10 corpus papers into a 2-level taxonomy rooted at 'LLM Agents for Scientific Research'. Requirements: (1) every node has parent except root; (2) ≥10 total nodes; (3) each leaf node has a 1–2 sentence definition + [P#] citation; (4) cite ≥7 papers across taxonomy; (5) sibling nodes must be meaningfully distinct. Generate both the text taxonomy and a matplotlib tree diagram embedded in the Word document."
+> "Organise all 10 corpus papers into a 2-level taxonomy rooted at 'LLM Agents for Scientific Research'. Requirements: (1) every node has parent except root; (2) >=10 total nodes; (3) each leaf node has a 1-2 sentence definition + [P#] citation; (4) cite >=7 papers across taxonomy; (5) sibling nodes must be meaningfully distinct. Generate both the text taxonomy and a local script-generated tree diagram embedded in the Word document."
 
 **Figure generation command:**
 ```bash

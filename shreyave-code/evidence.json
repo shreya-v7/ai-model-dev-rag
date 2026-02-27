@@ -43,6 +43,22 @@
     "claim_id": "C3",
     "paper_id": "P5",
     "support_level": "supports",
+    "quote": "Model ASDiv SVAMP MAWPS / Toolformer 40.4 29.4 44.0 / GPT-3 (175B) 14.0 10.0 19.8",
+    "location": "Table 4, P5 (arXiv:2302.04761)",
+    "explanation": "Table 4 provides the exact SVAMP scores: Toolformer 29.4% vs GPT-3 10.0%, confirming C3's claim that a 6.7B model outperforms a 175B model on zero-shot math."
+  },
+  {
+    "claim_id": "C6",
+    "paper_id": "P9",
+    "support_level": "partially_supports",
+    "quote": "We believe these results demonstrate the potential of language models as a new interface for science, but we also acknowledge the limitations of our evaluation, which focuses on standard NLP benchmarks.",
+    "location": "Section 6 (Discussion/Conclusion), P9 (arXiv:2211.09085)",
+    "explanation": "Supports the second half of C6: Galactica's authors acknowledge their evaluation focuses on standard benchmarks, implicitly confirming the absence of open-ended generation quality tests."
+  },
+  {
+    "claim_id": "C3",
+    "paper_id": "P5",
+    "support_level": "supports",
     "quote": "Toolformer achieves much stronger zero-shot results, clearly outperforming a much larger GPT-3 model (Brown et al., 2020) and several other baselines on various tasks.",
     "location": "Abstract / Section 1, P5 (arXiv:2302.04761)",
     "explanation": "Confirms C3 from the narrative prose: Toolformer (6.7B) outperforms GPT-3 (175B) on zero-shot tasks. The specific SVAMP numbers (29.4% vs 10.0%) are given in Table 4 of P5."

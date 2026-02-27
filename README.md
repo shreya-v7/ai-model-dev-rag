@@ -114,3 +114,20 @@ See `SECURITY.md` for details.
 - `docs/deployment.md`
 - `SECURITY.md`
 - `CONTRIBUTING.md`
+
+## Assignment End-to-End Packaging
+
+Generate rubric-oriented submission artifacts and ZIPs:
+
+```bash
+python scripts/run_assignment_pipeline.py \
+  --andrewid <andrewid-lowercase> \
+  --mode offline \
+  --comparison-survey S2 \
+  --paper-file /absolute/path/to/paper.docx
+```
+
+Outputs under `submission/`:
+- `<andrewid>-code.zip`
+- `<andrewid>-paper.zip` (when `--paper-file` is provided)
+- timestamped code bundle folder containing `evidence.json`, `eval.json`, `prompts.md`, `README.md`
